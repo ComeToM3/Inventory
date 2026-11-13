@@ -1,0 +1,45 @@
+# Dart and Flutter generated files
+.dart_tool/
+.packages
+.pub-cache/
+.pub/
+build/
+coverage/
+.flutter-plugins
+.flutter-plugins-dependencies
+
+# Local editor and IDE state
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+
+# Android local state and build outputs
+android/local.properties
+android/.gradle/
+android/captures/
+android/app/.cxx/
+android/app/.externalNativeBuild/
+*.apk
+*.aab
+
+# Signing material
+*.jks
+*.keystore
+key.properties
+android/key.properties
+
+# Local inventory data and exported backups
+*.db
+*.sqlite
+*.sqlite3
+*.db-wal
+*.db-shm
+*.invbackup
+
+# Operating system and diagnostic files
+.DS_Store
+Thumbs.db
+desktop.ini
+*.log
