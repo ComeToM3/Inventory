@@ -1,6 +1,6 @@
 **Note de recentrage (V1 Android) :** ce document a été rédigé lorsque le projet visait une application multiplateforme Windows/Android synchronisée. La V1 est désormais exclusivement Android, locale et hors ligne, sans synchronisation. Les recommandations ci-dessous restent utiles pour la structure documentaire générale, mais tout ce qui concerne la synchronisation, l'appairage ou un second appareil (notamment le document 05 et l'ADR-003) est à considérer comme historique ou reporté, et non comme une exigence active de la V1.
 
-**Statut documentaire :** ce document est une recommandation historique, pas une autorité de spécification pour la V1. La hiérarchie actuelle est définie au début de [blueprint.md](blueprint.md); [road-sheet.md](road-sheet.md) est la feuille de route active. Dans l'ancienne structure proposée ci-dessous, le plan de validation 08 est aujourd'hui couvert par [docs/04-user-validation.md](docs/04-user-validation.md), qui valide les parcours V1 sur un appareil Android réel, et non sur deux appareils. Les deux fichiers commençant par `04` sont distincts : `docs/04-data-domain-model.md` décrit les données et `docs/04-user-validation.md` les scénarios utilisateur.
+**Statut documentaire :** ce document est une recommandation historique, pas une autorité de spécification pour la V1. La hiérarchie actuelle est définie au début de [blueprint.md](blueprint.md); [road-sheet.md](road-sheet.md) est la feuille de route active. Dans l'ancienne structure proposée ci-dessous, le plan de validation 08 est aujourd'hui couvert par [04-user-validation.md](04-user-validation.md), qui valide les parcours V1 sur un appareil Android réel, et non sur deux appareils. Les deux fichiers commençant par `04` sont distincts : `04-data-domain-model.md` décrit les données et `04-user-validation.md` les scénarios utilisateur.
 
 Pour structurer ton application d'inventaire comme un projet logiciel professionnel, je te recommande de passer d'un simple blueprint à un dossier de conception produit et technique.
 
@@ -123,7 +123,7 @@ Comment les composants interagissent-ils ?
 
 07 — Sécurité
 
-Validation utilisateur — [docs/04-user-validation.md](docs/04-user-validation.md)
+Validation utilisateur — [04-user-validation.md](04-user-validation.md)
 
 Comment le prouver ?
 

@@ -70,7 +70,7 @@ Jalon 1 : le moteur local peut créer, retrouver et modifier des données cohér
 
 | Mandat                                    | Objectif et résultat attendu                                                                                                                                                   |
 | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| DEV-04 — Structure visuelle et navigation | Créer les écrans Inventaire, Recherche, Historique et Paramètres, ainsi que la navigation principale. La palette et le thème restent ouverts comme indiqué dans [docs/06-ux-ui.md](docs/06-ux-ui.md) ; ne pas figer le thème sombre bleu-vert sans confirmation utilisateur. |
+| DEV-04 — Structure visuelle et navigation | Créer les écrans Inventaire, Recherche, Historique et Paramètres, ainsi que la navigation principale. La palette et le thème restent ouverts comme indiqué dans [06-ux-ui.md](06-ux-ui.md) ; ne pas figer le thème sombre bleu-vert sans confirmation utilisateur. |
 | DEV-05 — Arborescence interactive         | Afficher emplacements, contenants et biens. Permettre plusieurs branches ouvertes, gérer l'indentation et conserver le défilement et les branches ouvertes après consultation. |
 | DEV-06 — Création rapide                  | Ajouter emplacements racines, contenants, biens simples et biens-contenants. Préremplir le parent et les valeurs par défaut.                                                   |
 | DEV-07 — Consultation et modification     | Créer la fiche et le formulaire des propriétés générales (nom, description, état et quantité), puis revenir à la même position dans l'arbre. Présenter catégories et valorisation sans en implémenter l'édition spécialisée, réservée à DEV-09. |
@@ -109,7 +109,7 @@ Un utilisateur peut sauvegarder son inventaire, le restaurer et retrouver ses bi
 
 | Mandat                                 | Objectif et résultat attendu                                                                                                                                                                                                     |
 | -------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| DEV-14 — Validation V1 de bout en bout | Exécuter les scénarios de [docs/04-user-validation.md](docs/04-user-validation.md) sur un appareil Android réel : navigation, inventaire profond, recherche, retraits, erreurs, sauvegarde, restauration et redémarrage. Corriger uniquement les défauts bloquants constatés. |
+| DEV-14 — Validation V1 de bout en bout | Exécuter les scénarios de [04-user-validation.md](04-user-validation.md) sur un appareil Android réel : navigation, inventaire profond, recherche, retraits, erreurs, sauvegarde, restauration et redémarrage. Corriger uniquement les défauts bloquants constatés. |
 | DEV-15 — Préparation et livraison V1   | Vérifier le manifeste, les permissions, la configuration de production, les dépendances, la signature et l'APK Android. Installer la version finale et effectuer un dernier parcours utilisateur complet.                        |
 
 Jalon 5 : Inventory V1 livrable.

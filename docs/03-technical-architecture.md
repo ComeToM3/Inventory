@@ -4,7 +4,7 @@ Statut des informations : **Confirmé** = décidé dans le blueprint · **Recomm
 
 Ce document décrit uniquement les composants indispensables au fonctionnement de la V1.
 
-**Recentrage V1 :** l'application est **Android exclusivement**, locale et hors ligne. Les composants réseau, de synchronisation et d'appairage décrits dans une version antérieure de ce document sont retirés du périmètre V1 (voir [blueprint.md](../blueprint.md), section 6, pour l'historique). Les anciennes décisions D03 (causalité), D04 (appairage) et D05 (restauration/ré-appairage) ne s'appliquent plus : D03 et D04 sont sans objet en l'absence de synchronisation ; D05 est remplacée par une politique de restauration simplifiée (section 5).
+**Recentrage V1 :** l'application est **Android exclusivement**, locale et hors ligne. Les composants réseau, de synchronisation et d'appairage décrits dans une version antérieure de ce document sont retirés du périmètre V1 (voir [blueprint.md](blueprint.md), section 6, pour l'historique). Les anciennes décisions D03 (causalité), D04 (appairage) et D05 (restauration/ré-appairage) ne s'appliquent plus : D03 et D04 sont sans objet en l'absence de synchronisation ; D05 est remplacée par une politique de restauration simplifiée (section 5).
 
 ## 1. Choix technologiques confirmés
 

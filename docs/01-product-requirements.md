@@ -2,7 +2,7 @@
 
 Statut des informations : **Confirmé** = décidé dans le blueprint · **Recommandation** = proposition à valider · **Ouvert** = à trancher.
 
-**Recentrage V1 :** la V1 est désormais une application **Android exclusivement**, locale et hors ligne. La synchronisation entre appareils et l'application Windows sont retirées du périmètre V1 (voir [blueprint.md](../blueprint.md), section 6, pour l'historique).
+**Recentrage V1 :** la V1 est désormais une application **Android exclusivement**, locale et hors ligne. La synchronisation entre appareils et l'application Windows sont retirées du périmètre V1 (voir [blueprint.md](blueprint.md), section 6, pour l'historique).
 
 ## 1. Finalité du produit
 

@@ -13,11 +13,11 @@ Le blueprint fixe le périmètre de la V1, les choix techniques, le modèle de d
 Les décisions explicitement confirmées par l'utilisateur prévalent. Les documents spécialisés sont les références détaillées de leur domaine :
 
 - [road-sheet.md](road-sheet.md) est la feuille de route actuelle et la séquence directrice DEV-01 à DEV-15.
-- [docs/01-product-requirements.md](docs/01-product-requirements.md) et [docs/02-functional-specification.md](docs/02-functional-specification.md) définissent les exigences et comportements métier.
-- [docs/03-technical-architecture.md](docs/03-technical-architecture.md) définit les responsabilités et dépendances techniques.
-- [docs/04-data-domain-model.md](docs/04-data-domain-model.md) est la référence du modèle de données actuel.
-- [docs/06-ux-ui.md](docs/06-ux-ui.md), [docs/07-security-privacy.md](docs/07-security-privacy.md) et [docs/09-backup-recovery.md](docs/09-backup-recovery.md) sont les références de leurs domaines respectifs.
-- [docs/04-user-validation.md](docs/04-user-validation.md) est le plan de validation utilisateur actuellement présent. Son préfixe `04` est distinct de celui du modèle de données.
+- [01-product-requirements.md](01-product-requirements.md) et [02-functional-specification.md](02-functional-specification.md) définissent les exigences et comportements métier.
+- [03-technical-architecture.md](03-technical-architecture.md) définit les responsabilités et dépendances techniques.
+- [04-data-domain-model.md](04-data-domain-model.md) est la référence du modèle de données actuel.
+- [06-ux-ui.md](06-ux-ui.md), [07-security-privacy.md](07-security-privacy.md) et [09-backup-recovery.md](09-backup-recovery.md) sont les références de leurs domaines respectifs.
+- [04-user-validation.md](04-user-validation.md) est le plan de validation utilisateur actuellement présent. Son préfixe `04` est distinct de celui du modèle de données.
 
 Ce blueprint donne une vue d'ensemble; il ne remplace pas ces documents spécialisés. [essential-doc.md](essential-doc.md) conserve des recommandations documentaires historiques et ne constitue pas une source de décisions actives. Les anciens plans de développement sont explicitement historiques. En cas de contradiction non résolue entre les références ou avec une décision utilisateur, signaler les passages concernés et demander une décision; ne pas choisir arbitrairement.
 
@@ -133,7 +133,7 @@ Règles :
 | `categories`      | Classification des biens                        |
 | `node_categories` | Associations biens-catégories                   |
 
-Les champs, types, contraintes et relations détaillés sont définis par [docs/04-data-domain-model.md](docs/04-data-domain-model.md). Pour éviter les descriptions concurrentes, les champs suivants des anciens aperçus n'appartiennent pas au modèle actuel :
+Les champs, types, contraintes et relations détaillés sont définis par [04-data-domain-model.md](04-data-domain-model.md). Pour éviter les descriptions concurrentes, les champs suivants des anciens aperçus n'appartiennent pas au modèle actuel :
 
 - `can_contain` n'est pas listé comme colonne; le modèle recommande de déduire la capacité de `node_type`. Cette représentation reste une recommandation technique à confirmer au schéma.
 - `financial_value` n'est pas le nom de champ du modèle actuel, qui recommande `financial_value_cents` en cents CAD; cette précision est une recommandation technique du modèle.

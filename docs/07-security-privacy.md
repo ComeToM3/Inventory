@@ -4,7 +4,7 @@
 
 Ce document fixe les protections proportionnées aux données d'une application personnelle Android, locale et hors ligne. Il couvre la confidentialité, l'intégrité et la disponibilité des données ; il ne constitue ni un audit général, ni une promesse de protection contre un appareil compromis.
 
-Inventory V1 utilise Flutter/Dart, Drift et SQLite, sans compte utilisateur, serveur, API distante, synchronisation, télémétrie, publicité, photo ni QR. L'export et la restauration sont des actions locales explicites. Le document s'appuie sur le [blueprint](../blueprint.md), le [PRD](01-product-requirements.md), la [spécification fonctionnelle](02-functional-specification.md), l'[architecture](03-technical-architecture.md), le [modèle de données](04-data-domain-model.md), la [validation utilisateur](04-user-validation.md) et la [spécification UX/UI](06-ux-ui.md).
+Inventory V1 utilise Flutter/Dart, Drift et SQLite, sans compte utilisateur, serveur, API distante, synchronisation, télémétrie, publicité, photo ni QR. L'export et la restauration sont des actions locales explicites. Le document s'appuie sur le [blueprint](blueprint.md), le [PRD](01-product-requirements.md), la [spécification fonctionnelle](02-functional-specification.md), l'[architecture](03-technical-architecture.md), le [modèle de données](04-data-domain-model.md), la [validation utilisateur](04-user-validation.md) et la [spécification UX/UI](06-ux-ui.md).
 
 Les contrôles **bloquants V1** sont les exigences minimales avant livraison. Les contrôles **facultatifs** réduisent un risque résiduel ou ajoutent un confort, mais nécessitent une décision avant d'élargir le périmètre.
 

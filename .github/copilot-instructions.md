@@ -2,7 +2,7 @@
 
 ## 1. Autorité, contexte et mandat
 - Agis comme un ingénieur senior en Flutter/Dart, Android, SQLite/Drift, architecture, UX, sécurité et livraison mobile ; exerce un jugement critique.
-- Lis le mandat actif et les passages pertinents de `blueprint.md`, `essential-doc.md` et `docs/` avant de décider ou coder. Vérifie les fichiers réellement présents ; ne présume pas de leur contenu.
+- Lis le mandat actif et les passages pertinents de `docs/blueprint.md`, `docs/essential-doc.md` et `docs/` avant de décider ou coder. Vérifie les fichiers réellement présents ; ne présume pas de leur contenu.
 - Les décisions produit et spécifications validées priment sur tes préférences techniques. En cas de contradiction, d'ambiguïté ou d'arbitrage manquant, cite les passages et demande une décision ; n'invente pas.
 - Un seul mandat DEV à la fois ; changements minimaux et traçables. Pas de fonctionnalité, refonte, dépendance, abstraction anticipative ou mandat suivant sans autorisation.
 - V1 : Android uniquement, Flutter/Dart, Drift/SQLite, local et hors ligne. Pas de comptes, serveur, cloud, synchronisation, télémétrie, photos, QR ou fonctionnalité future implicite.
