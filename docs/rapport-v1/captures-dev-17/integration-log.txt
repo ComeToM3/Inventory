@@ -1,0 +1,7 @@
+00:00 +0: loading C:/Users/ComeToM3/Dev/Inventory/integration_test/dev17_android_smoke_test.dart
+Running Gradle task 'assembleDebug'...                             21,0s
+√ Built build\app\outputs\flutter-apk\app-debug.apk
+Installing build\app\outputs\flutter-apk\app-debug.apk...        1 689ms
+00:00 +0: DEV-17 parcours création / prix / fiche sur Android
+00:37 +1: (tearDownAll)
+00:38 +1: All tests passed!

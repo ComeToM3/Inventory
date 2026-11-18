@@ -66,7 +66,7 @@ void main() {
         database,
         inventoryId: inventory.id,
         id: 'container',
-        type: 'container',
+        type: 'item_container',
         parentId: 'root',
       );
       await _insertNode(
@@ -120,6 +120,16 @@ void main() {
                 categoryId: 'category',
               ),
             ),
+        throwsA(isA<SqliteException>()),
+      );
+      await expectLater(
+        _insertNode(
+          database,
+          inventoryId: inventory.id,
+          id: 'legacy-container',
+          type: 'container',
+          parentId: 'root',
+        ),
         throwsA(isA<SqliteException>()),
       );
       await expectLater(
@@ -287,14 +297,125 @@ void main() {
       expect(
         (await database.customSelect('PRAGMA user_version').getSingle())
             .read<int>('user_version'),
-        2,
+        7,
       );
       expect(await database.select(database.inventories).get(), hasLength(1));
+      final columns = await database.customSelect('PRAGMA table_info(nodes)').get();
+      expect(
+        columns.any((row) => row.read<String>('name') == 'stock_reference'),
+        isTrue,
+      );
       await database.close();
       database = null;
 
       database = InventoryDatabase(NativeDatabase(File(path)));
       expect(await database.readVerificationValue(), 'kept-from-v1');
+    } finally {
+      await database?.close();
+      await _removeDatabase(path, directory);
+    }
+  });
+
+  test('migre v6→v7 sans dupliquer stock_reference et normalise le Stock', () async {
+    final directory = await Directory.systemTemp.createTemp(
+      'inventory_migration_v6_',
+    );
+    final path = '${directory.path}${Platform.pathSeparator}inventory.sqlite';
+    InventoryDatabase? database;
+
+    try {
+      database = InventoryDatabase(
+        NativeDatabase(
+          File(path),
+          setup: (raw) {
+            raw.execute('''
+CREATE TABLE inventories (
+  id TEXT NOT NULL PRIMARY KEY,
+  name TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+)
+''');
+            raw.execute('''
+CREATE TABLE nodes (
+  id TEXT NOT NULL PRIMARY KEY,
+  inventory_id TEXT NOT NULL,
+  parent_id TEXT NULL,
+  space TEXT NOT NULL DEFAULT 'goods',
+  name TEXT NOT NULL,
+  node_type TEXT NOT NULL,
+  quantity INTEGER NULL DEFAULT 1,
+  description TEXT NULL,
+  condition TEXT NULL,
+  value_mode TEXT NULL,
+  financial_value_cents INTEGER NULL,
+  sentimental_value INTEGER NULL,
+  stock_unit TEXT NULL,
+  unit_cost_cents INTEGER NULL,
+  status TEXT NOT NULL DEFAULT 'active',
+  withdrawal_reason TEXT NULL,
+  withdrawn_at TEXT NULL,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+)
+''');
+            raw.execute(
+              "INSERT INTO inventories (id, name, created_at, updated_at) "
+              "VALUES ('inv-1', 'Principal', '2024-01-01T00:00:00.000Z', "
+              "'2024-01-01T00:00:00.000Z')",
+            );
+            raw.execute(
+              "INSERT INTO nodes (id, inventory_id, parent_id, space, name, "
+              "node_type, quantity, stock_unit, unit_cost_cents, status, "
+              "created_at, updated_at) VALUES "
+              "('loc-1', 'inv-1', NULL, 'stock', 'Cuisine', 'location', NULL, "
+              "NULL, NULL, 'active', '2024-01-01T00:00:00.000Z', "
+              "'2024-01-01T00:00:00.000Z')",
+            );
+            raw.execute(
+              "INSERT INTO nodes (id, inventory_id, parent_id, space, name, "
+              "node_type, quantity, stock_unit, unit_cost_cents, status, "
+              "created_at, updated_at) VALUES "
+              "('item-1', 'inv-1', 'loc-1', 'stock', 'Cafe', 'item', 8, "
+              "'paquet', 250, 'active', '2024-01-01T00:00:00.000Z', "
+              "'2024-01-01T00:00:00.000Z')",
+            );
+            raw.execute('PRAGMA user_version = 6');
+          },
+        ),
+      );
+
+      expect(
+        (await database.customSelect('PRAGMA user_version').getSingle())
+            .read<int>('user_version'),
+        7,
+      );
+      final columns =
+          await database.customSelect('PRAGMA table_info(nodes)').get();
+      expect(
+        columns.where((row) => row.read<String>('name') == 'stock_reference'),
+        hasLength(1),
+      );
+      final cafe = await (database.select(database.nodes)
+            ..where((n) => n.id.equals('item-1')))
+          .getSingle();
+      expect(cafe.quantity, 4); // 8 quarts → niveau 1
+      expect(cafe.unitCostCents, isNull);
+      expect(cafe.stockUnit, 'paquet');
+      expect(cafe.stockReference, isNull);
+
+      // Re-open: must not fail with duplicate column.
+      await database.close();
+      database = InventoryDatabase(NativeDatabase(File(path)));
+      expect(
+        (await database.customSelect('PRAGMA user_version').getSingle())
+            .read<int>('user_version'),
+        7,
+      );
+      final again = await (database.select(database.nodes)
+            ..where((n) => n.id.equals('item-1')))
+          .getSingle();
+      expect(again.quantity, 4);
     } finally {
       await database?.close();
       await _removeDatabase(path, directory);

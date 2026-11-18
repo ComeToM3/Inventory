@@ -37,26 +37,24 @@ void main() {
     InventoryNode? parent,
     int? quantity,
     NodeValuation? valuation,
-    List<String> categoryIds = const [],
   }) => engine.createNode(
     name: name,
     type: type,
     parentId: parent?.id,
     quantity: quantity,
     valuation: valuation,
-    categoryIds: categoryIds,
   );
 
   test('crée chaque type et reconstruit une hiérarchie profonde', () async {
     final home = await create('  Appartement  ', NodeType.location);
     final office = await create('Bureau', NodeType.location, parent: home);
-    final cabinet = await create('Armoire', NodeType.container, parent: office);
+    final cabinet = await create('Armoire', NodeType.itemContainer, parent: office);
     final toolbox = await create(
       'Boîte à outils',
       NodeType.itemContainer,
       parent: cabinet,
     );
-    final box = await create('Boîte', NodeType.container, parent: toolbox);
+    final box = await create('Boîte', NodeType.itemContainer, parent: toolbox);
     final cable = await create('Câble', NodeType.item, parent: box);
 
     expect(home.name, 'Appartement');
@@ -64,8 +62,8 @@ void main() {
     expect(home.valuation, isNull);
     expect(toolbox.quantity, 1);
     expect(cable.quantity, 1);
-    expect(cable.valuation, const FinancialValuation(0));
-    expect(cable.financialTotalCents, 0);
+    expect(cable.valuation, isNull);
+    expect(cable.financialTotalCents, isNull);
 
     expect(_names(await engine.getPath(cable.id)), [
       'Appartement',
@@ -86,7 +84,7 @@ void main() {
     expect(_names(await engine.getChildren(cabinet.id)), ['Boîte à outils']);
 
     await _expectCode(
-      create('Boîte racine', NodeType.container),
+      create('Boîte racine', NodeType.itemContainer),
       InventoryErrorCode.parentRequired,
     );
     await _expectCode(
@@ -121,16 +119,10 @@ void main() {
       final home = await create('Appartement', NodeType.location);
       final roomA = await create('Chambre', NodeType.location, parent: home);
       final roomB = await create('Garage', NodeType.location, parent: home);
-      final shelf = await create('Étagère', NodeType.container, parent: roomA);
+      final shelf = await create('Étagère', NodeType.itemContainer, parent: roomA);
       final bag = await create('Sac', NodeType.itemContainer, parent: shelf);
-      final pouch = await create('Pochette', NodeType.container, parent: bag);
-      final category = await engine.createCategory('Électronique');
-      final charger = await create(
-        'Chargeur',
-        NodeType.item,
-        parent: pouch,
-        categoryIds: [category.id],
-      );
+      final pouch = await create('Pochette', NodeType.itemContainer, parent: bag);
+      final charger = await create('Chargeur', NodeType.item, parent: pouch);
       final emptyCase = await create(
         'Valise vide',
         NodeType.itemContainer,
@@ -150,9 +142,6 @@ void main() {
         'Sac',
         'Pochette',
         'Chargeur',
-      ]);
-      expect(_names(await engine.getNodeCategories(charger.id)), [
-        'Électronique',
       ]);
       expect(await engine.getChildren(roomA.id), isEmpty);
 
@@ -232,18 +221,14 @@ void main() {
         valuation: const FinancialValuation(1250),
       );
       final child = await create('Livre', NodeType.item, parent: bag);
-      final category = await engine.createCategory('Voyage');
-      await engine.assignCategory(bag.id, category.id);
 
       final edited = await engine.updateDetails(
         bag.id,
         name: ' Valise bleue ',
-        description: ' Cabine ',
         condition: 'Bon',
         quantity: 3,
       );
       expect(edited.name, 'Valise bleue');
-      expect(edited.description, 'Cabine');
       expect(edited.condition, 'Bon');
       expect(edited.quantity, 3);
       expect(edited.financialTotalCents, 3750);
@@ -251,7 +236,6 @@ void main() {
       expect(edited.parentId, home.id);
       expect(edited.type, NodeType.itemContainer);
       expect((await engine.getChildren(bag.id)).single.id, child.id);
-      expect((await engine.getNodeCategories(bag.id)).single.id, category.id);
 
       final before = await _snapshot(database);
       await database.customStatement('''
@@ -266,7 +250,6 @@ void main() {
         engine.updateDetails(
           bag.id,
           name: 'Refus technique',
-          description: 'Non enregistré',
           quantity: 7,
         ),
         InventoryErrorCode.constraintViolation,
@@ -293,7 +276,6 @@ void main() {
       engine = InventoryEngine(database);
       final reopened = await engine.getNode(bag.id);
       expect(reopened.name, 'Valise bleue');
-      expect(reopened.description, 'Cabine');
       expect(reopened.condition, 'Bon');
       expect(reopened.quantity, 3);
       expect(reopened.parentId, home.id);
@@ -302,7 +284,7 @@ void main() {
 
   test('applique quantités et modes de valorisation exclusifs', () async {
     final home = await create('Appartement', NodeType.location);
-    final drawer = await create('Tiroir', NodeType.container, parent: home);
+    final drawer = await create('Tiroir', NodeType.itemContainer, parent: home);
     final cables = await create(
       'Câbles USB-C',
       NodeType.item,
@@ -323,7 +305,7 @@ void main() {
       InventoryErrorCode.invalidQuantity,
     );
     await _expectCode(
-      engine.updateQuantity(drawer.id, 2),
+      engine.updateQuantity(home.id, 2),
       InventoryErrorCode.requiresItem,
     );
 
@@ -362,13 +344,20 @@ void main() {
       await _expectCode(engine.setValuation(cables.id, invalid.$1), invalid.$2);
     }
     await _expectCode(
-      engine.setValuation(drawer.id, const FinancialValuation(100)),
+      engine.setValuation(home.id, const FinancialValuation(100)),
       InventoryErrorCode.requiresItem,
     );
     expect(
       (await engine.getNode(cables.id)).valuation,
       const FinancialValuation(0),
     );
+
+    final cleared = await engine.setValuation(cables.id, null);
+    expect(cleared.valuation, isNull);
+    expect(cleared.financialTotalCents, isNull);
+    row = await _row(database, cables.id);
+    expect(row.valueMode, isNull);
+    await engine.setValuation(cables.id, const FinancialValuation(0));
 
     await _expectCode(
       engine.setValuation(cables.id, const FinancialValuation(_maxInt64 ~/ 2)),
@@ -382,11 +371,9 @@ void main() {
     final edited = await engine.updateDetails(
       cables.id,
       name: ' Câbles ',
-      description: 'Noirs',
       condition: '   ',
     );
     expect(edited.name, 'Câbles');
-    expect(edited.description, 'Noirs');
     expect(edited.condition, isNull);
     expect(edited.parentId, drawer.id);
   });
@@ -434,62 +421,50 @@ void main() {
     'enregistre les modifications groupées ou annule chaque écriture',
     () async {
       final home = await create('Maison', NodeType.location);
-      final first = await engine.createCategory('Première');
-      final second = await engine.createCategory('Deuxième');
       final item = await create(
         'Bien',
         NodeType.item,
         parent: home,
         valuation: const FinancialValuation(_maxInt64),
-        categoryIds: [first.id],
       );
       final before = await _snapshot(database);
       await database.customStatement('''
-      CREATE TEMP TRIGGER reject_grouped_category
-      AFTER INSERT ON node_categories
+      CREATE TEMP TRIGGER reject_grouped_update
+      BEFORE UPDATE OF name ON nodes
+      WHEN NEW.name = 'Refus technique'
       BEGIN
-        SELECT RAISE(ABORT, 'forced category failure');
+        SELECT RAISE(ABORT, 'forced write failure');
       END
     ''');
       await _expectCode(
         engine.updateItemDetails(
           item.id,
-          name: 'Modifié',
+          name: 'Refus technique',
           quantity: 2,
           valuation: const FinancialValuation(0),
-          categoryIds: [second.id],
-          newCategoryNames: ['Nouvelle'],
         ),
         InventoryErrorCode.constraintViolation,
       );
       expect(await _snapshot(database), before);
-      await database.customStatement('DROP TRIGGER reject_grouped_category');
+      await database.customStatement('DROP TRIGGER reject_grouped_update');
 
       final saved = await engine.updateItemDetails(
         item.id,
         name: 'Modifié',
         quantity: 2,
         valuation: const FinancialValuation(0),
-        categoryIds: [second.id],
-        newCategoryNames: ['Nouvelle'],
       );
-      expect(saved.node.id, item.id);
-      expect(saved.node.parentId, home.id);
-      expect(saved.node.quantity, 2);
-      expect(saved.node.valuation, const FinancialValuation(0));
-      expect(
-        _names(saved.categories),
-        unorderedEquals(['Deuxième', 'Nouvelle']),
-      );
-      final ids = saved.categories.map((category) => category.id).toList();
+      expect(saved.id, item.id);
+      expect(saved.parentId, home.id);
+      expect(saved.quantity, 2);
+      expect(saved.valuation, const FinancialValuation(0));
       final highUnit = await engine.updateItemDetails(
         item.id,
         name: 'Modifié',
         quantity: 1,
         valuation: const FinancialValuation(_maxInt64),
-        categoryIds: ids,
       );
-      expect(highUnit.node.financialTotalCents, _maxInt64);
+      expect(highUnit.financialTotalCents, _maxInt64);
       final beforeOverflow = await _snapshot(database);
       await _expectCode(
         engine.updateItemDetails(
@@ -497,7 +472,6 @@ void main() {
           name: 'Invalide',
           quantity: 2,
           valuation: const FinancialValuation(_maxInt64),
-          categoryIds: ids,
         ),
         InventoryErrorCode.financialTotalOverflow,
       );
@@ -507,109 +481,52 @@ void main() {
         name: 'Modifié',
         quantity: 2,
         valuation: const SentimentalValuation(4),
-        categoryIds: ids,
       );
-      expect(sentimental.node.valuation, const SentimentalValuation(4));
+      expect(sentimental.valuation, const SentimentalValuation(4));
       final row = await _row(database, item.id);
       expect(row.financialValueCents, isNull);
       expect(row.sentimentalValue, 4);
+      final unset = await engine.updateItemDetails(
+        item.id,
+        name: 'Modifié',
+        quantity: 2,
+      );
+      expect(unset.valuation, isNull);
+      expect(unset.financialTotalCents, isNull);
     },
   );
-
-  test('gère les catégories indépendamment de la hiérarchie', () async {
-    final home = await create('Appartement', NodeType.location);
-    final box = await create('Boîte', NodeType.container, parent: home);
-    final electronics = await engine.createCategory('Électronique');
-    final tools = await engine.createCategory('Outillage');
-    final kit = await create(
-      'Trousse',
-      NodeType.itemContainer,
-      parent: box,
-      categoryIds: [electronics.id],
-    );
-
-    await engine.assignCategory(kit.id, tools.id);
-    expect(
-      _names(await engine.getNodeCategories(kit.id)),
-      unorderedEquals(['Électronique', 'Outillage']),
-    );
-    await _expectCode(
-      engine.assignCategory(kit.id, tools.id),
-      InventoryErrorCode.categoryAlreadyAssigned,
-    );
-    await _expectCode(
-      engine.assignCategory(box.id, tools.id),
-      InventoryErrorCode.requiresItem,
-    );
-    await _expectCode(
-      engine.createNode(
-        name: 'Pièce',
-        type: NodeType.location,
-        parentId: home.id,
-        categoryIds: [tools.id],
-      ),
-      InventoryErrorCode.requiresItem,
-    );
-    await _expectCode(
-      engine.assignCategory(kit.id, 'absente'),
-      InventoryErrorCode.categoryNotFound,
-    );
-
-    await engine.renameCategory(electronics.id, 'Informatique');
-    expect((await engine.getNode(kit.id)).parentId, box.id);
-    expect(
-      _names(await engine.getNodeCategories(kit.id)),
-      unorderedEquals(['Informatique', 'Outillage']),
-    );
-
-    await engine.unassignCategory(kit.id, tools.id);
-    await _expectCode(
-      engine.unassignCategory(kit.id, tools.id),
-      InventoryErrorCode.categoryNotAssigned,
-    );
-
-    await engine.deleteCategory(electronics.id);
-    expect(await engine.getNodeCategories(kit.id), isEmpty);
-    expect((await engine.getNode(kit.id)).parentId, box.id);
-    expect(_names(await engine.getCategories()), ['Outillage']);
-  });
 
   test('recherche les nœuds actifs avec des filtres combinés', () async {
     final home = await create('Maison', NodeType.location);
     final workshop = await create('Atelier', NodeType.location);
     final office = await create('Bureau', NodeType.location, parent: home);
-    final cabinet = await create('Armoire', NodeType.container, parent: office);
-    final lighting = await engine.createCategory('Éclairage');
-    final decoration = await engine.createCategory('Décoration');
+    final cabinet = await create('Armoire', NodeType.itemContainer, parent: office);
     final homeLamp = await create(
       'Lampe',
       NodeType.item,
       parent: cabinet,
       quantity: 3,
-      categoryIds: [lighting.id, decoration.id],
     );
     final workshopLamp = await create(
       'Lampe',
       NodeType.item,
       parent: workshop,
-      categoryIds: [lighting.id],
     );
     final withdrawn = await create(
       'Lampe retirée',
       NodeType.item,
       parent: cabinet,
-      categoryIds: [lighting.id],
     );
     await engine.withdrawItem(withdrawn.id, WithdrawalReason.loss);
     final accented = await create(
       'Étagère 100%_neuve',
-      NodeType.container,
+      NodeType.itemContainer,
       parent: home,
     );
-    await create('Étagère 100Xneuve', NodeType.container, parent: home);
+    await create('Étagère 100Xneuve', NodeType.itemContainer, parent: home);
 
     final lamps = await engine.searchNodes(
-      InventorySearchCriteria(name: 'lAM', categoryId: lighting.id),
+      InventorySearchCriteria(name: 'lAM'),
     );
     expect(
       lamps.results.map((result) => result.nodeId),
@@ -633,7 +550,6 @@ void main() {
       InventorySearchCriteria(
         name: 'LAM',
         type: NodeType.item,
-        categoryId: lighting.id,
         branchId: office.id,
       ),
     );
@@ -647,7 +563,7 @@ void main() {
     );
     expect(
       (await engine.searchNodes(
-        InventorySearchCriteria(name: 'lam', type: NodeType.container),
+        InventorySearchCriteria(name: 'lam', type: NodeType.itemContainer),
       )).results,
       isEmpty,
     );
@@ -661,12 +577,6 @@ void main() {
       engine.searchNodes(InventorySearchCriteria(branchId: homeLamp.id)),
       InventoryErrorCode.parentCannotContain,
     );
-    await _expectCode(
-      engine.searchNodes(
-        const InventorySearchCriteria(categoryId: 'catégorie absente'),
-      ),
-      InventoryErrorCode.categoryNotFound,
-    );
 
     await engine.moveNode(homeLamp.id, workshop.id);
     expect(
@@ -679,7 +589,7 @@ void main() {
     database = openDatabase();
     engine = InventoryEngine(database);
     final reopened = await engine.searchNodes(
-      InventorySearchCriteria(name: 'lam', categoryId: lighting.id),
+      InventorySearchCriteria(name: 'lam'),
     );
     expect(
       reopened.results.map((result) => result.nodeId),
@@ -695,8 +605,8 @@ void main() {
 
   test('signale une hiérarchie cyclique pendant la recherche', () async {
     final home = await create('Maison', NodeType.location);
-    final cabinet = await create('Armoire', NodeType.container, parent: home);
-    final box = await create('Boîte', NodeType.container, parent: cabinet);
+    final cabinet = await create('Armoire', NodeType.itemContainer, parent: home);
+    final box = await create('Boîte', NodeType.itemContainer, parent: cabinet);
     await database.customStatement(
       'UPDATE nodes SET parent_id = ? WHERE id = ?',
       [box.id, cabinet.id],
@@ -714,15 +624,13 @@ void main() {
 
   test('distingue retrait historique et suppression définitive', () async {
     final home = await create('Appartement', NodeType.location);
-    final cabinet = await create('Armoire', NodeType.container, parent: home);
+    final cabinet = await create('Armoire', NodeType.itemContainer, parent: home);
     final bag = await create('Sac', NodeType.itemContainer, parent: cabinet);
-    final category = await engine.createCategory('Vêtements');
     final scarf = await create(
       'Foulard',
       NodeType.item,
       parent: bag,
       valuation: const SentimentalValuation(5),
-      categoryIds: [category.id],
     );
 
     final before = await _snapshot(database);
@@ -735,7 +643,7 @@ void main() {
       InventoryErrorCode.nodeHasChildren,
     );
     await _expectCode(
-      engine.withdrawItem(cabinet.id, WithdrawalReason.loss),
+      engine.withdrawItem(home.id, WithdrawalReason.loss),
       InventoryErrorCode.requiresItem,
     );
     expect(await _snapshot(database), before);
@@ -750,7 +658,6 @@ void main() {
     expect(withdrawn.parentId, isNull);
     expect(withdrawn.name, 'Foulard');
     expect(withdrawn.valuation, const SentimentalValuation(5));
-    expect(_names(await engine.getNodeCategories(scarf.id)), ['Vêtements']);
     expect(await engine.getChildren(bag.id), isEmpty);
     expect(_names(await engine.getWithdrawnItems()), ['Foulard']);
 
@@ -776,16 +683,12 @@ void main() {
       'Erreur',
       NodeType.item,
       parent: home,
-      categoryIds: [category.id],
     );
     await engine.deleteNodePermanently(mistake.id);
     await _expectCode(
       engine.getNode(mistake.id),
       InventoryErrorCode.nodeNotFound,
     );
-    final associations = await database.select(database.nodeCategories).get();
-    expect(associations.map((row) => row.nodeId), [scarf.id]);
-    expect(_names(await engine.getCategories()), ['Vêtements']);
     expect(
       _names(await engine.getWithdrawnItems()),
       unorderedEquals(['Foulard', 'Sac']),
@@ -794,17 +697,11 @@ void main() {
 
   test('annule entièrement une opération composée en échec', () async {
     final home = await create('Appartement', NodeType.location);
-    final category = await engine.createCategory('Outillage');
     final before = await _snapshot(database);
 
     await _expectCode(
-      create(
-        'Perceuse',
-        NodeType.item,
-        parent: home,
-        categoryIds: [category.id, 'absente'],
-      ),
-      InventoryErrorCode.categoryNotFound,
+      create('Perceuse', NodeType.item, parent: home, quantity: 0),
+      InventoryErrorCode.invalidQuantity,
     );
     expect(await _snapshot(database), before);
 
@@ -824,7 +721,6 @@ void main() {
         name: 'Doublon',
         type: NodeType.item,
         parentId: home.id,
-        categoryIds: [category.id],
       ),
       InventoryErrorCode.constraintViolation,
     );
@@ -833,15 +729,13 @@ void main() {
 
   test('conserve l’état métier après fermeture et réouverture', () async {
     final home = await create('Appartement', NodeType.location);
-    final box = await create('Boîte', NodeType.container, parent: home);
-    final category = await engine.createCategory('Électronique');
+    final box = await create('Boîte', NodeType.itemContainer, parent: home);
     final lot = await create(
       'Piles',
       NodeType.item,
       parent: box,
       quantity: 8,
       valuation: const FinancialValuation(125),
-      categoryIds: [category.id],
     );
     final lost = await create('Montre', NodeType.item, parent: box);
     await engine.withdrawItem(lost.id, WithdrawalReason.loss);
@@ -858,20 +752,272 @@ void main() {
       'Boîte',
       'Piles',
     ]);
-    expect(_names(await engine.getNodeCategories(lot.id)), ['Électronique']);
     expect(_names(await engine.getChildren(box.id)), ['Piles']);
     final history = await engine.getWithdrawnItems();
     expect(_names(history), ['Montre']);
     expect(history.single.withdrawalReason, WithdrawalReason.loss);
     expect(history.single.withdrawnAt, _now);
   });
+
+  test('agrège les totaux financiers de sous-arbre sans double comptage', () async {
+    final home = await create('Maison', NodeType.location);
+    final office = await create('Bureau', NodeType.location, parent: home);
+    final cabinet = await create('Armoire', NodeType.itemContainer, parent: office);
+    final lamp = await create(
+      'Lampe',
+      NodeType.item,
+      parent: cabinet,
+      quantity: 2,
+      valuation: const FinancialValuation(1500),
+    );
+    final toolkit = await create(
+      'Boîte à outils',
+      NodeType.itemContainer,
+      parent: cabinet,
+      quantity: 1,
+      valuation: const FinancialValuation(4000),
+    );
+    await create(
+      'Tournevis',
+      NodeType.item,
+      parent: toolkit,
+      valuation: const FinancialValuation(500),
+    );
+    await create(
+      'Photo',
+      NodeType.item,
+      parent: office,
+      valuation: const SentimentalValuation(5),
+    );
+    final sold = await create(
+      'Vieux câble',
+      NodeType.item,
+      parent: office,
+      valuation: const FinancialValuation(9999),
+    );
+    await engine.withdrawItem(sold.id, WithdrawalReason.sale);
+
+    final closed = await engine.getSubtreeFinancialTotals([home.id]);
+    expect(closed[home.id], isA<SubtreeFinancialAmount>());
+    expect((closed[home.id]! as SubtreeFinancialAmount).cents, 2 * 1500 + 4000 + 500);
+
+    final levels = await engine.getSubtreeFinancialTotals([
+      home.id,
+      office.id,
+      cabinet.id,
+      toolkit.id,
+    ]);
+    expect((levels[office.id]! as SubtreeFinancialAmount).cents, 7500);
+    expect((levels[cabinet.id]! as SubtreeFinancialAmount).cents, 7500);
+    expect((levels[toolkit.id]! as SubtreeFinancialAmount).cents, 4500);
+
+    await engine.updateItemDetails(
+      lamp.id,
+      name: lamp.name,
+      quantity: 3,
+      valuation: const FinancialValuation(1500),
+    );
+    final afterQty = await engine.getSubtreeFinancialTotals([home.id, cabinet.id]);
+    expect((afterQty[home.id]! as SubtreeFinancialAmount).cents, 3 * 1500 + 4500);
+    expect((afterQty[cabinet.id]! as SubtreeFinancialAmount).cents, 9000);
+
+    final salon = await create('Salon', NodeType.location, parent: home);
+    await engine.moveNode(lamp.id, salon.id);
+    final afterMove = await engine.getSubtreeFinancialTotals([
+      home.id,
+      cabinet.id,
+      salon.id,
+    ]);
+    expect((afterMove[cabinet.id]! as SubtreeFinancialAmount).cents, 4500);
+    expect((afterMove[salon.id]! as SubtreeFinancialAmount).cents, 4500);
+    expect((afterMove[home.id]! as SubtreeFinancialAmount).cents, 9000);
+
+    final empty = await create('Cave', NodeType.location, parent: home);
+    final none = await engine.getSubtreeFinancialTotals([empty.id]);
+    expect(none[empty.id], isA<SubtreeFinancialNone>());
+  });
+
+  test('signale un débordement de total de sous-arbre contrôlé', () async {
+    final home = await create('Maison', NodeType.location);
+    final a = await create(
+      'A',
+      NodeType.item,
+      parent: home,
+      valuation: const FinancialValuation(_maxInt64 - 10),
+    );
+    final b = await create(
+      'B',
+      NodeType.item,
+      parent: home,
+      valuation: const FinancialValuation(20),
+    );
+    expect(a.financialTotalCents, _maxInt64 - 10);
+    expect(b.financialTotalCents, 20);
+    final totals = await engine.getSubtreeFinancialTotals([home.id]);
+    expect(totals[home.id], isA<SubtreeFinancialOverflow>());
+  });
+
+  test('expose la valorisation dans les résultats de recherche', () async {
+    final home = await create('Maison', NodeType.location);
+    await create(
+      'Lampe EVGA',
+      NodeType.item,
+      parent: home,
+      quantity: 2,
+      valuation: const FinancialValuation(12000),
+    );
+    final found = await engine.searchNodes(
+      const InventorySearchCriteria(name: 'EVGA'),
+    );
+    expect(found.results, hasLength(1));
+    expect(found.results.single.quantity, 2);
+    expect(found.results.single.valuation, const FinancialValuation(12000));
+  });
+
+  test(
+    'DEV-33 trie les biens (simple + contenant) avant les sous-emplacements',
+    () async {
+      final home = await create('Maison', NodeType.location);
+      final room = await create('Chambre', NodeType.location, parent: home);
+      await create('Garde-robe', NodeType.location, parent: room);
+      await create(
+        'Bureau',
+        NodeType.itemContainer,
+        parent: room,
+        valuation: const FinancialValuation(12000),
+      );
+      await create(
+        'Ordinateur principal',
+        NodeType.item,
+        parent: room,
+        valuation: const FinancialValuation(100000),
+      );
+      await create(
+        'Clavier',
+        NodeType.item,
+        parent: room,
+        valuation: const FinancialValuation(500),
+      );
+
+      expect(_names(await engine.getChildren(room.id)), [
+        'Bureau',
+        'Clavier',
+        'Ordinateur principal',
+        'Garde-robe',
+      ]);
+    },
+  );
+
+  test(
+    'DEV-32 convertit un bien simple valorisé en contenant sans perdre id/valeur',
+    () async {
+      final home = await create('Maison', NodeType.location);
+      final desk = await create(
+        'bureau assis debout',
+        NodeType.item,
+        parent: home,
+        quantity: 1,
+        valuation: const FinancialValuation(12000),
+      );
+      expect(desk.name, 'Bureau assis debout');
+      expect(desk.type, NodeType.item);
+
+      final converted = await engine.convertItemKind(
+        desk.id,
+        NodeType.itemContainer,
+      );
+      expect(converted.id, desk.id);
+      expect(converted.type, NodeType.itemContainer);
+      expect(converted.name, 'Bureau assis debout');
+      expect(converted.quantity, 1);
+      expect(converted.financialTotalCents, 12000);
+      expect(converted.parentId, home.id);
+
+      final monitor = await create(
+        'Moniteur',
+        NodeType.item,
+        parent: converted,
+        valuation: const FinancialValuation(25000),
+      );
+      await create(
+        'Clavier',
+        NodeType.item,
+        parent: converted,
+        valuation: const FinancialValuation(500),
+      );
+      await create(
+        'Souris',
+        NodeType.item,
+        parent: converted,
+        valuation: const FinancialValuation(1000),
+      );
+
+      final totals = await engine.getSubtreeFinancialTotals([converted.id]);
+      expect(
+        (totals[converted.id]! as SubtreeFinancialAmount).cents,
+        12000 + 25000 + 500 + 1000,
+      );
+      expect(monitor.parentId, converted.id);
+
+      await _expectCode(
+        engine.convertItemKind(converted.id, NodeType.item),
+        InventoryErrorCode.nodeHasChildren,
+      );
+      expect((await engine.getNode(converted.id)).type, NodeType.itemContainer);
+      expect((await engine.getChildren(converted.id)), hasLength(3));
+    },
+  );
+
+  test(
+    'DEV-32 reconvertit un contenant vide et refuse les noms trop longs',
+    () async {
+      final home = await create('Maison', NodeType.location);
+      final box = await create(
+        'Boîte',
+        NodeType.itemContainer,
+        parent: home,
+        valuation: const FinancialValuation(800),
+      );
+      final simple = await engine.convertItemKind(box.id, NodeType.item);
+      expect(simple.type, NodeType.item);
+      expect(simple.financialTotalCents, 800);
+
+      final longOk = 'a' * InventoryEngine.maxNameLength;
+      final created = await create(longOk, NodeType.item, parent: home);
+      expect(created.name.length, InventoryEngine.maxNameLength);
+
+      await _expectCode(
+        create('${longOk}x', NodeType.item, parent: home),
+        InventoryErrorCode.nameTooLong,
+      );
+
+      // Historical longer name may be re-saved unchanged.
+      await database.customStatement(
+        "UPDATE nodes SET name = ? WHERE id = ?",
+        ['${'b' * 90}', created.id],
+      );
+      final kept = await engine.updateItemDetails(
+        created.id,
+        name: 'b' * 90,
+        quantity: 1,
+      );
+      expect(kept.name.length, 90);
+      await _expectCode(
+        engine.updateItemDetails(
+          created.id,
+          name: 'c' * 81,
+          quantity: 1,
+        ),
+        InventoryErrorCode.nameTooLong,
+      );
+    },
+  );
 }
 
 List<String> _names(Iterable<Object> values) => values
     .map(
       (value) => switch (value) {
         InventoryNode(:final name) => name,
-        InventoryCategory(:final name) => name,
         _ => throw ArgumentError.value(value),
       },
     )

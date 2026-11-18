@@ -38,7 +38,7 @@ void main() {
         expect(search.results.single.nodeId, 'récent');
         expect(search.readError, isNull);
 
-        search.setType(NodeType.container);
+        search.setType(NodeType.itemContainer);
         search.setType(null);
         expect(search.criteria.isEmpty, isTrue);
         expect(search.results, isEmpty);
@@ -99,23 +99,25 @@ void main() {
           ),
         );
       }
-      final tree = InventoryTreeController(engine);
-
       try {
-        tree.loadRoots();
-        await tree.waitForPendingOperations();
-        tree.toggle(home);
-        await tree.waitForPendingOperations();
         await tester.pumpWidget(
-          MaterialApp(home: MainNavigationScreen(treeController: tree)),
+          MaterialApp(
+            home: MainNavigationScreen(
+              engine: engine,
+              database: database,
+            ),
+          ),
         );
         await tester.pumpAndSettle();
-        await tester.tap(find.text(AppStrings.search));
+        // Expand Maison on the live goods tree (owned by MainNavigationScreen).
+        await tester.tap(find.text('Maison'));
         await tester.pumpAndSettle();
-        await tree.waitForPendingOperations();
+        expect(find.text('Objet 00'), findsOneWidget);
+
+        await tester.tap(find.byTooltip(AppStrings.search));
+        await tester.pumpAndSettle();
         await tester.enterText(find.byType(TextField), 'objet');
         await tester.pump(const Duration(milliseconds: 300));
-        await tree.waitForPendingOperations();
         await tester.pumpAndSettle();
 
         final list = find.byKey(const PageStorageKey('search-results'));
@@ -130,43 +132,55 @@ void main() {
             .position
             .pixels;
         expect(offset, greaterThan(0));
+        await tester.scrollUntilVisible(
+          find.text('Objet 10'),
+          200,
+          scrollable: scrollable,
+        );
+        await tester.pumpAndSettle();
+        // Opening a result pops search and reveals the tree detail.
         await tester.tap(find.text('Objet 10'));
         await tester.pumpAndSettle();
-        expect(find.text('Maison → Objet 10'), findsOneWidget);
+        expect(find.text('Objet 10'), findsWidgets);
+        // Maison expansion preserved under the search route.
+        expect(find.text('Objet 00'), findsOneWidget);
+        expect(find.text('Atelier'), findsWidgets);
 
-        await tester.tap(find.text(AppStrings.move));
+        await engine.moveNode(items[10].id, workshop.id);
+        expect((await engine.getNode(items[10].id)).parentId, workshop.id);
+
+        await tester.tap(find.byTooltip(AppStrings.search));
         await tester.pumpAndSettle();
-        await tester.tap(find.text('Atelier'));
-        await tester.pumpAndSettle();
-        await tester.tap(find.text(AppStrings.moveHere));
-        await tester.pumpAndSettle();
-        await tester.tap(find.widgetWithText(FilledButton, AppStrings.move));
-        await tree.waitForPendingOperations();
-        await tester.pumpAndSettle();
-        expect(find.text('Atelier → Objet 10'), findsOneWidget);
-        await tester.pageBack();
-        await tester.pumpAndSettle();
-        await tree.waitForPendingOperations();
+        await tester.enterText(find.byType(TextField), 'objet');
+        await tester.pump(const Duration(milliseconds: 300));
         await tester.pumpAndSettle();
         expect(
           tester.widget<TextField>(find.byType(TextField)).controller!.text,
           'objet',
         );
-        expect(find.textContaining('Atelier → Objet 10'), findsOneWidget);
-        expect(
-          tester.state<ScrollableState>(scrollable).position.pixels,
-          offset,
+        final listMoved = find.byKey(const PageStorageKey('search-results'));
+        final scrollMoved = find.descendant(
+          of: listMoved,
+          matching: find.byType(Scrollable),
         );
-        expect(tree.isExpanded(home.id), isTrue);
-        expect(tree.isExpanded(workshop.id), isFalse);
+        await tester.scrollUntilVisible(
+          find.text('Objet 10'),
+          200,
+          scrollable: scrollMoved,
+        );
+        await tester.pumpAndSettle();
+        expect(find.textContaining('Objet 10'), findsWidgets);
+        expect(find.textContaining('Atelier'), findsWidgets);
 
         await engine.withdrawItem(items[11].id, WithdrawalReason.loss);
         await tester.tap(find.text('Objet 11'));
         await tester.pumpAndSettle();
         expect(find.text(AppStrings.nodeUnavailable), findsOneWidget);
-        await tester.pageBack();
+
+        await tester.tap(find.byTooltip(AppStrings.search));
         await tester.pumpAndSettle();
-        await tree.waitForPendingOperations();
+        await tester.enterText(find.byType(TextField), 'objet');
+        await tester.pump(const Duration(milliseconds: 300));
         await tester.pumpAndSettle();
         expect(find.text('Objet 11'), findsNothing);
         expect(
@@ -177,21 +191,18 @@ void main() {
         engine.failSearch = true;
         await tester.enterText(find.byType(TextField), 'objet 1');
         await tester.pump(const Duration(milliseconds: 300));
-        await tree.waitForPendingOperations();
         await tester.pumpAndSettle();
         expect(find.text(AppStrings.searchReadError), findsOneWidget);
         engine.failSearch = false;
         await tester.tap(find.text(AppStrings.retry));
-        await tree.waitForPendingOperations();
         await tester.pumpAndSettle();
         expect(find.text(AppStrings.searchReadError), findsNothing);
-        await tester.drag(list, const Offset(0, 1000));
+        final listAfter = find.byKey(const PageStorageKey('search-results'));
+        await tester.drag(listAfter, const Offset(0, 1000));
         await tester.pumpAndSettle();
         expect(find.text('Objet 10'), findsOneWidget);
       } finally {
         await tester.pumpWidget(const SizedBox.shrink());
-        await tree.waitForPendingOperations();
-        tree.dispose();
         await database.close();
       }
     },

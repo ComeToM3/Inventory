@@ -40,7 +40,7 @@ class _PersistenceCheckScreenState extends State<PersistenceCheckScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(AppStrings.description),
+                  const Text(AppStrings.persistenceCheckDescription),
                   const SizedBox(height: _spacing),
                   if (controller.loading) ...[
                     const CircularProgressIndicator(),

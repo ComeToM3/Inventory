@@ -2,291 +2,403 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../core/database/inventory_database.dart';
+import '../core/domain/inventory_engine.dart';
 import '../core/domain/inventory_models.dart';
 import 'app_strings.dart';
+import 'help_screen.dart';
 import 'inventory_creation_screen.dart';
+import 'inventory_history_screen.dart';
+import 'inventory_messages.dart';
 import 'inventory_search_screen.dart';
+import 'inventory_thumb_layout.dart';
 import 'inventory_tree_controller.dart';
 import 'inventory_tree_screen.dart';
-import 'node_details_screen.dart';
+import 'inventory_ui.dart';
+import 'settings_screen.dart';
+import 'stock_history_screen.dart';
 
-enum _QuickAdd { item, container }
+const _creatableTypes = [
+  NodeType.location,
+  NodeType.item,
+  NodeType.itemContainer,
+];
 
-enum _Destination {
-  inventory(
-    title: AppStrings.inventory,
-    message: AppStrings.inventoryEmpty,
-    icon: Icons.inventory_2_outlined,
-    selectedIcon: Icons.inventory_2,
-  ),
-  search(
-    title: AppStrings.search,
-    icon: Icons.search_outlined,
-    selectedIcon: Icons.search,
-  ),
-  history(
-    title: AppStrings.history,
-    message: AppStrings.historyComingSoon,
-    icon: Icons.history_outlined,
-    selectedIcon: Icons.history,
-  ),
-  settings(
-    title: AppStrings.settings,
-    message: AppStrings.settingsComingSoon,
-    icon: Icons.settings_outlined,
-    selectedIcon: Icons.settings,
-  );
-
-  const _Destination({
-    required this.title,
-    this.message,
-    required this.icon,
-    required this.selectedIcon,
-  });
-
-  final String title;
-  final String? message;
-  final IconData icon;
-  final IconData selectedIcon;
-}
+const _spaces = [
+  InventorySpace.goods,
+  InventorySpace.stock,
+  InventorySpace.toBuy,
+];
 
 class MainNavigationScreen extends StatefulWidget {
-  const MainNavigationScreen({super.key, required this.treeController});
+  const MainNavigationScreen({
+    super.key,
+    required this.engine,
+    required this.database,
+    this.onInventoryRestored,
+  });
 
-  final InventoryTreeController treeController;
+  final InventoryEngine engine;
+  final InventoryDatabase database;
+  final Future<void> Function()? onInventoryRestored;
 
   @override
   State<MainNavigationScreen> createState() => _MainNavigationScreenState();
 }
 
 class _MainNavigationScreenState extends State<MainNavigationScreen> {
-  _Destination _selected = _Destination.inventory;
-  bool _nodeRouteOpen = false;
+  late final Map<InventorySpace, InventoryTreeController> _controllers;
+  late final Map<InventorySpace, GlobalKey<InventoryTreeScreenState>> _treeKeys;
+  var _spaceIndex = 0;
+  bool _creationRouteOpen = false;
 
-  Future<void> _openNode(String nodeId, {bool revealMovedNode = true}) async {
-    if (_nodeRouteOpen) return;
-    _nodeRouteOpen = true;
-    try {
-      await Navigator.of(context).push<void>(
-        MaterialPageRoute(
-          builder: (_) => NodeDetailsScreen(
-            inventory: widget.treeController,
-            nodeId: nodeId,
-            revealMovedNode: revealMovedNode,
-          ),
-        ),
-      );
-    } finally {
-      _nodeRouteOpen = false;
+  InventorySpace get _space => _spaces[_spaceIndex];
+
+  InventoryTreeController get _activeController => _controllers[_space]!;
+
+  InventoryTreeController get _goodsController =>
+      _controllers[InventorySpace.goods]!;
+
+  InventoryTreeController get _stockController =>
+      _controllers[InventorySpace.stock]!;
+
+  bool get _isGoods => _space == InventorySpace.goods;
+
+  bool get _isStock => _space == InventorySpace.stock;
+
+  bool get _canMutateSpace => _isGoods || _isStock;
+
+  @override
+  void initState() {
+    super.initState();
+    _controllers = {
+      for (final space in _spaces)
+        space: InventoryTreeController(widget.engine, space: space),
+    };
+    _treeKeys = {
+      for (final space in _spaces)
+        space: GlobalKey<InventoryTreeScreenState>(),
+    };
+    for (final controller in _controllers.values) {
+      controller.loadRoots();
     }
   }
 
-  Future<void> _openCreation({
-    required InventoryNode? parent,
-    required List<NodeType> allowedTypes,
-    required NodeType initialType,
-  }) async {
-    final created = await Navigator.of(context).push<bool>(
-      MaterialPageRoute(
-        builder: (_) => InventoryCreationScreen(
-          controller: widget.treeController,
-          parent: parent,
-          allowedTypes: allowedTypes,
-          initialType: initialType,
-        ),
-      ),
-    );
-    if (!mounted || created != true) return;
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(const SnackBar(content: Text(AppStrings.creationSuccess)));
-  }
-
-  Future<void> _addRoot() => _openCreation(
-    parent: null,
-    allowedTypes: const [NodeType.location],
-    initialType: NodeType.location,
-  );
-
-  Future<void> _addChild(InventoryNode parent) => _openCreation(
-    parent: parent,
-    allowedTypes: NodeType.values,
-    initialType: NodeType.item,
-  );
-
-  Future<void> _quickAdd() async {
-    final choice = await showModalBottomSheet<_QuickAdd>(
-      context: context,
-      builder: (context) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.view_in_ar_outlined),
-              title: const Text(AppStrings.addItem),
-              onTap: () => Navigator.pop(context, _QuickAdd.item),
-            ),
-            ListTile(
-              leading: const Icon(Icons.inventory_2_outlined),
-              title: const Text(AppStrings.addContainer),
-              onTap: () => Navigator.pop(context, _QuickAdd.container),
-            ),
-          ],
-        ),
-      ),
-    );
-    if (!mounted || choice == null) return;
-
-    final parent = await Navigator.of(context).push<InventoryNode>(
-      MaterialPageRoute(
-        builder: (_) => _ParentPickerScreen(controller: widget.treeController),
-      ),
-    );
-    if (!mounted || parent == null) return;
-    await _openCreation(
-      parent: parent,
-      allowedTypes: switch (choice) {
-        _QuickAdd.item => const [NodeType.item, NodeType.itemContainer],
-        _QuickAdd.container => const [NodeType.container],
-      },
-      initialType: switch (choice) {
-        _QuickAdd.item => NodeType.item,
-        _QuickAdd.container => NodeType.container,
-      },
-    );
-  }
-
   @override
-  Widget build(BuildContext context) {
-    return PopScope<void>(
-      canPop: _selected == _Destination.inventory,
-      onPopInvokedWithResult: (didPop, _) {
-        if (!didPop && _selected != _Destination.inventory) {
-          setState(() => _selected = _Destination.inventory);
-        }
-      },
-      child: Scaffold(
-        appBar: AppBar(
-          title: Text(_selected.title),
-          actions: [
-            if (_selected == _Destination.inventory)
-              IconButton(
-                onPressed: () => unawaited(_addRoot()),
-                icon: const Icon(Icons.create_new_folder_outlined),
-                tooltip: AppStrings.addRootLocationTooltip,
-              ),
-          ],
-        ),
-        body: SafeArea(
-          child: IndexedStack(
-            index: _selected.index,
-            children: [
-              InventoryTreeScreen(
-                controller: widget.treeController,
-                onAddRoot: () => unawaited(_addRoot()),
-                onAddChild: (node) => unawaited(_addChild(node)),
-                onOpenNode: (node) => unawaited(_openNode(node.id)),
-              ),
-              InventorySearchScreen(
-                inventory: widget.treeController,
-                active: _selected == _Destination.search,
-                onOpenNode: (id) => _openNode(id, revealMovedNode: false),
-              ),
-              for (final destination in _Destination.values.skip(2))
-                _PlaceholderScreen(destination: destination),
-            ],
+  void dispose() {
+    for (final controller in _controllers.values) {
+      controller.dispose();
+    }
+    super.dispose();
+  }
+
+  Future<void> _handleInventoryRestored() async {
+    final callback = widget.onInventoryRestored;
+    if (callback != null) await callback();
+    for (final controller in _controllers.values) {
+      controller.resetAfterRestore();
+    }
+  }
+
+  Future<void> _openNodeInTree(String nodeId) async {
+    if (Navigator.of(context).canPop()) {
+      Navigator.of(context).pop();
+    }
+    await _treeKeys[_space]?.currentState?.openDetailFor(nodeId);
+  }
+
+  Future<void> _openSearch() async {
+    if (!_canMutateSpace) return;
+    final controller = _activeController;
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (_) => Scaffold(
+          appBar: AppBar(title: const Text(AppStrings.search)),
+          body: InventorySearchScreen(
+            inventory: controller,
+            active: true,
+            onOpenNode: _openNodeInTree,
           ),
         ),
-        floatingActionButton: _selected == _Destination.inventory
-            ? AnimatedBuilder(
-                animation: widget.treeController,
-                builder: (context, _) {
-                  final controller = widget.treeController;
-                  if (controller.roots?.isNotEmpty != true ||
-                      controller.rootError) {
-                    return const SizedBox.shrink();
-                  }
-                  return FloatingActionButton(
-                    onPressed: () => unawaited(_quickAdd()),
-                    tooltip: AppStrings.add,
-                    child: const Icon(Icons.add),
-                  );
-                },
-              )
-            : null,
-        bottomNavigationBar: NavigationBar(
-          selectedIndex: _selected.index,
-          labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-          onDestinationSelected: (index) {
-            setState(() => _selected = _Destination.values[index]);
-          },
-          destinations: [
-            for (final destination in _Destination.values)
-              NavigationDestination(
-                icon: Icon(destination.icon),
-                selectedIcon: Icon(destination.selectedIcon),
-                label: destination.title,
-              ),
-          ],
+      ),
+    );
+  }
+
+  Future<void> _openHistory() async {
+    if (!_canMutateSpace) return;
+    if (_isStock) {
+      await Navigator.of(context).push<void>(
+        MaterialPageRoute(
+          builder: (_) => Scaffold(
+            appBar: AppBar(title: const Text(AppStrings.history)),
+            body: StockHistoryScreen(controller: _stockController),
+          ),
+        ),
+      );
+      return;
+    }
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (_) => Scaffold(
+          appBar: AppBar(title: const Text(AppStrings.history)),
+          body: InventoryHistoryScreen(
+            inventory: _goodsController,
+            active: true,
+          ),
         ),
       ),
     );
   }
-}
 
-class _ParentPickerScreen extends StatelessWidget {
-  const _ParentPickerScreen({required this.controller});
+  Future<void> _openSettings() async {
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (_) => SettingsScreen(
+          database: widget.database,
+          onInventoryRestored: _handleInventoryRestored,
+        ),
+      ),
+    );
+  }
 
-  final InventoryTreeController controller;
+  Future<void> _openHelp() async {
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute(builder: (_) => const HelpScreen()),
+    );
+  }
+
+  Future<void> _openCreation({
+    required NodeType type,
+    InventoryNode? initialParent,
+  }) async {
+    if (!_canMutateSpace || _creationRouteOpen) return;
+    _creationRouteOpen = true;
+    final controller = _activeController;
+    final space = _space;
+    try {
+      final created = await Navigator.of(context).push<Object?>(
+        MaterialPageRoute(
+          builder: (_) => InventoryCreationScreen(
+            controller: controller,
+            type: type,
+            initialParent: initialParent,
+          ),
+        ),
+      );
+      if (!mounted || created == null || created == false) return;
+      final parentId = created is InventoryNode
+          ? created.parentId
+          : initialParent?.id;
+      _treeKeys[space]?.currentState?.settleAfterMutation(parentId: parentId);
+      showInventoryMessage(context, AppStrings.creationSuccess);
+    } finally {
+      _creationRouteOpen = false;
+    }
+  }
+
+  Future<void> _addRoot() async {
+    if (!_canMutateSpace) return;
+    final type = await _pickType();
+    if (!mounted || type == null) return;
+    await _openCreation(type: type);
+  }
+
+  Future<void> _addChild(InventoryNode parent) async {
+    if (!_canMutateSpace) return;
+    final type = await _pickType();
+    if (!mounted || type == null) return;
+    await _openCreation(type: type, initialParent: parent);
+  }
+
+  Future<NodeType?> _pickType() {
+    return Navigator.of(context).push<NodeType>(
+      MaterialPageRoute(
+        builder: (_) => _TypePickerScreen(
+          allowedTypes: _creatableTypes,
+          stockLabels: _isStock,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _quickAdd() async {
+    if (!_canMutateSpace) return;
+    final type = await _pickType();
+    if (!mounted || type == null) return;
+    await _openCreation(type: type);
+  }
+
+  void _onSpaceSelected(int index) {
+    if (index == _spaceIndex) return;
+    setState(() => _spaceIndex = index);
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text(AppStrings.chooseParent)),
-      body: SafeArea(
-        child: Column(
+      appBar: AppBar(
+        title: Row(
           children: [
-            const Padding(
-              padding: EdgeInsets.all(16),
-              child: Text(AppStrings.chooseParentHelp),
-            ),
-            Expanded(
-              child: InventoryTreeScreen(
-                controller: controller,
-                onChooseParent: (node) => Navigator.pop(context, node),
-              ),
+            const Icon(Icons.view_in_ar, size: 22),
+            const SizedBox(width: 10),
+            Text(AppStrings.appTitle),
+            const SizedBox(width: 10),
+            Text(
+              '· ${AppStrings.labelForSpace(_space)}',
+              style: const TextStyle(fontWeight: FontWeight.w400, fontSize: 16),
             ),
           ],
         ),
+        actions: [
+          if (_canMutateSpace)
+            IconButton(
+              tooltip: AppStrings.search,
+              onPressed: () => unawaited(_openSearch()),
+              icon: const Icon(Icons.search),
+            ),
+          PopupMenuButton<String>(
+            tooltip: AppStrings.moreActions,
+            onSelected: (value) {
+              switch (value) {
+                case 'root':
+                  unawaited(_addRoot());
+                case 'history':
+                  unawaited(_openHistory());
+                case 'help':
+                  unawaited(_openHelp());
+                case 'settings':
+                  unawaited(_openSettings());
+              }
+            },
+            itemBuilder: (context) => [
+              if (_canMutateSpace)
+                const PopupMenuItem(
+                  value: 'root',
+                  child: Text(AppStrings.add),
+                ),
+              if (_canMutateSpace)
+                const PopupMenuItem(
+                  value: 'history',
+                  child: Text(AppStrings.history),
+                ),
+              const PopupMenuItem(value: 'help', child: Text(AppStrings.help)),
+              const PopupMenuItem(
+                value: 'settings',
+                child: Text(AppStrings.settings),
+              ),
+            ],
+          ),
+        ],
+      ),
+      body: Column(
+        children: [
+          if (_space == InventorySpace.toBuy)
+            Material(
+              color: Theme.of(context).colorScheme.surfaceContainerHighest,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 10,
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.info_outline,
+                      size: 18,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                    const SizedBox(width: 10),
+                    const Expanded(
+                      child: Text(
+                        AppStrings.spaceComingSoon,
+                        style: TextStyle(fontSize: 13),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          Expanded(
+            child: IndexedStack(
+              index: _spaceIndex,
+              children: [
+                for (final space in _spaces)
+                  InventoryTreeScreen(
+                    key: _treeKeys[space],
+                    controller: _controllers[space]!,
+                    onAddRoot: space == InventorySpace.goods ||
+                            space == InventorySpace.stock
+                        ? () => unawaited(_addRoot())
+                        : null,
+                    onAddChild: space == InventorySpace.goods ||
+                            space == InventorySpace.stock
+                        ? (node) => unawaited(_addChild(node))
+                        : null,
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+      floatingActionButton: _canMutateSpace
+          ? FloatingActionButton(
+              onPressed: () => unawaited(_quickAdd()),
+              tooltip: AppStrings.add,
+              child: const Icon(Icons.add),
+            )
+          : null,
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _spaceIndex,
+        onDestinationSelected: _onSpaceSelected,
+        destinations: const [
+          NavigationDestination(
+            icon: Icon(Icons.home_outlined),
+            selectedIcon: Icon(Icons.home),
+            label: AppStrings.spaceGoods,
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.inventory_2_outlined),
+            selectedIcon: Icon(Icons.inventory_2),
+            label: AppStrings.spaceStock,
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.shopping_cart_outlined),
+            selectedIcon: Icon(Icons.shopping_cart),
+            label: AppStrings.spaceToBuy,
+          ),
+        ],
       ),
     );
   }
 }
 
-class _PlaceholderScreen extends StatelessWidget {
-  const _PlaceholderScreen({required this.destination});
+class _TypePickerScreen extends StatelessWidget {
+  const _TypePickerScreen({
+    required this.allowedTypes,
+    this.stockLabels = false,
+  });
 
-  final _Destination destination;
+  final List<NodeType> allowedTypes;
+  final bool stockLabels;
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 480),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(destination.icon, size: 48),
-              const SizedBox(height: 16),
-              Text(
-                destination.message!,
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodyLarge,
+    return Scaffold(
+      appBar: AppBar(title: const Text(AppStrings.createTitle)),
+      body: SafeArea(
+        child: InventoryThumbBody(
+          children: [
+            for (final type in allowedTypes) ...[
+              InventoryTypeChoiceCard(
+                type: type,
+                labelOverride: stockLabels && type == NodeType.item
+                    ? AppStrings.stockProductType
+                    : null,
+                onTap: () => Navigator.pop(context, type),
               ),
+              const SizedBox(height: 12),
             ],
-          ),
+          ],
         ),
       ),
     );

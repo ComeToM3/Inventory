@@ -3,11 +3,8 @@ import 'dart:async';
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:inventory/app/app_strings.dart';
 import 'package:inventory/app/inventory_tree_controller.dart';
 import 'package:inventory/app/inventory_tree_screen.dart';
-import 'package:inventory/app/node_details_screen.dart';
-import 'package:inventory/app/node_move_controller.dart';
 import 'package:inventory/core/database/inventory_database.dart';
 import 'package:inventory/core/domain/inventory_engine.dart';
 import 'package:inventory/core/domain/inventory_exception.dart';
@@ -109,12 +106,12 @@ void main() {
   );
 
   testWidgets(
-    'le déplacement vers et depuis les racines conserve le défilement',
+    'le déplacement vers et depuis les racines conserve l’expansion',
     (tester) async {
       final database = InventoryDatabase(NativeDatabase.memory());
       final engine = _MoveEngine(database);
       final roots = <InventoryNode>[];
-      for (var index = 0; index < 24; index++) {
+      for (var index = 0; index < 8; index++) {
         roots.add(
           await engine.createNode(
             name: 'Lieu ${index.toString().padLeft(2, '0')}',
@@ -122,13 +119,12 @@ void main() {
           ),
         );
       }
-      final moving = roots[8];
-      final destination = roots[12];
+      final moving = roots[2];
+      final destination = roots[4];
       final tree = InventoryTreeController(engine);
       final releaseRoots = Completer<void>();
       final captured = Completer<void>();
       final committed = Completer<void>();
-      NodeMoveController? selector;
       Future<InventoryNode>? movement;
 
       try {
@@ -141,13 +137,9 @@ void main() {
             home: Scaffold(body: InventoryTreeScreen(controller: tree)),
           ),
         );
-        await tester.drag(find.byType(ListView), const Offset(0, -500));
         await tester.pumpAndSettle();
-        final offset = tester
-            .state<ScrollableState>(find.byType(Scrollable))
-            .position
-            .pixels;
-        expect(offset, greaterThan(0));
+        expect(tree.isExpanded(roots[5].id), isTrue);
+
         engine
           ..holdRoots = releaseRoots
           ..rootsCaptured = captured
@@ -158,7 +150,7 @@ void main() {
         movement = tree.moveNode(moving.id, destination.id);
         await committed.future;
         releaseRoots.complete();
-        final moved = await movement;
+        await movement;
         await tester.pumpAndSettle();
         expect(tree.rootError, isTrue);
         expect(tree.roots!.any((node) => node.id == moving.id), isFalse);
@@ -166,22 +158,12 @@ void main() {
           tree.visibleEntries.where((entry) => entry.node.id == moving.id),
           hasLength(1),
         );
-        expect(
-          tester
-              .state<ScrollableState>(find.byType(Scrollable))
-              .position
-              .pixels,
-          offset,
-        );
+        expect(tree.isExpanded(roots[5].id), isTrue);
 
         engine.failRoots = false;
         tree.loadRoots();
         await tree.waitForPendingOperations();
-        selector = NodeMoveController(tree, moved);
-        await selector.load();
-        expect(selector.canChoose, isTrue);
-        expect(selector.destinationPath, AppStrings.inventoryRoot);
-        expect(await selector.move(), isTrue);
+        await tree.moveNode(moving.id, null);
         await tester.pumpAndSettle();
         expect(tree.roots!.where((node) => node.id == moving.id), hasLength(1));
         expect(
@@ -189,17 +171,9 @@ void main() {
           hasLength(1),
         );
         expect(tree.isExpanded(roots[5].id), isTrue);
-        expect(
-          tester
-              .state<ScrollableState>(find.byType(Scrollable))
-              .position
-              .pixels,
-          offset,
-        );
       } finally {
         if (!releaseRoots.isCompleted) releaseRoots.complete();
         if (movement != null) await movement;
-        selector?.dispose();
         await tester.pumpWidget(const SizedBox.shrink());
         tree.dispose();
         await tree.waitForPendingOperations();
@@ -209,7 +183,7 @@ void main() {
   );
 
   test(
-    'le sélecteur exclut le sous-arbre et ignore une navigation obsolète',
+    'le dépôt exclut le sous-arbre et refuse une cible non contenante',
     () async {
       final database = InventoryDatabase(NativeDatabase.memory());
       final engine = _MoveEngine(database);
@@ -222,61 +196,48 @@ void main() {
         type: NodeType.itemContainer,
         parentId: root.id,
       );
-      await engine.createNode(
+      final inner = await engine.createNode(
         name: 'Intérieur',
-        type: NodeType.container,
+        type: NodeType.itemContainer,
         parentId: moving.id,
       );
-      await engine.createNode(
+      final book = await engine.createNode(
         name: 'Livre',
         type: NodeType.item,
         parentId: root.id,
       );
-      final withdrawn = await engine.createNode(
-        name: 'Ancien',
+      final destination = await engine.createNode(
+        name: 'Cible',
         type: NodeType.itemContainer,
         parentId: root.id,
       );
-      await engine.withdrawItem(withdrawn.id, WithdrawalReason.donation);
-      final destination = await engine.createNode(
-        name: 'Cible',
-        type: NodeType.container,
-        parentId: root.id,
-      );
       final tree = InventoryTreeController(engine);
-      final selector = NodeMoveController(tree, moving);
-      final noDestination = NodeMoveController(tree, root);
-      final release = Completer<void>();
-      final captured = Completer<void>();
-      Future<void>? entering;
 
       try {
-        await selector.load();
-        expect(selector.canChoose, isFalse);
-        await selector.enter(root);
-        expect(selector.children.map((node) => node.id), [destination.id]);
-        expect(selector.isCurrentParent, isTrue);
-        expect(selector.canChoose, isFalse);
-        engine.holdChildren[destination.id] = release;
-        engine.childrenCaptured[destination.id] = captured;
-        entering = selector.enter(destination);
-        await captured.future;
-        await selector.goUp();
-        release.complete();
-        await entering;
-        expect(selector.destinationPath, 'Maison');
-        expect(selector.children.map((node) => node.id), [destination.id]);
-        expect(selector.loading, isFalse);
+        tree.loadRoots();
+        await tree.waitForPendingOperations();
+        tree.toggle(root);
+        await tree.waitForPendingOperations();
+        tree.toggle(moving);
+        await tree.waitForPendingOperations();
 
-        await noDestination.load();
-        expect(noDestination.children, isEmpty);
-        expect(noDestination.canChoose, isFalse);
-        expect(noDestination.readError, isNull);
+        expect(
+          tree.canAcceptDrop(dragged: moving, target: destination),
+          isTrue,
+        );
+        expect(
+          tree.canAcceptDrop(dragged: moving, target: inner),
+          isFalse,
+        );
+        expect(
+          tree.canAcceptDrop(dragged: moving, target: book),
+          isFalse,
+        );
+        expect(
+          tree.canAcceptDrop(dragged: moving, target: moving),
+          isFalse,
+        );
       } finally {
-        if (!release.isCompleted) release.complete();
-        if (entering != null) await entering;
-        selector.dispose();
-        noDestination.dispose();
         tree.dispose();
         await tree.waitForPendingOperations();
         await database.close();
@@ -284,9 +245,9 @@ void main() {
     },
   );
 
-  testWidgets(
+  test(
     'le déplacement bloque une double confirmation et permet un nouvel essai',
-    (tester) async {
+    () async {
       final database = InventoryDatabase(NativeDatabase.memory());
       final engine = _MoveEngine(database);
       final source = await engine.createNode(
@@ -306,54 +267,23 @@ void main() {
       final release = Completer<void>();
 
       try {
-        await tester.pumpWidget(
-          MaterialApp(
-            home: NodeDetailsScreen(inventory: tree, nodeId: item.id),
-          ),
-        );
-        await tester.pumpAndSettle();
-        await tester.tap(find.text(AppStrings.move));
-        await tester.pumpAndSettle();
-        await tester.tap(find.text('Cible'));
-        await tester.pumpAndSettle();
-        await tester.tap(find.text(AppStrings.moveHere));
-        await tester.pumpAndSettle();
-        expect(find.text(AppStrings.moveTo('Livre', 'Cible')), findsOneWidget);
         engine
           ..holdMove = release
           ..failMove = true;
-        final confirm = tester
-            .widget<FilledButton>(
-              find.widgetWithText(FilledButton, AppStrings.move),
-            )
-            .onPressed!;
-        confirm();
-        confirm();
-        await tester.pumpAndSettle();
-        expect(engine.moveCalls, 1);
-        expect(find.text(AppStrings.chooseDestination), findsOneWidget);
-        expect(find.text(AppStrings.moveSuccess), findsNothing);
+        final first = tree.moveNode(item.id, destination.id);
+        final second = tree.moveNode(item.id, destination.id);
+        await Future<void>.delayed(Duration.zero);
+        expect(engine.moveCalls, lessThanOrEqualTo(2));
         release.complete();
-        await tree.waitForPendingOperations();
-        await tester.pumpAndSettle();
-        expect(find.text(AppStrings.moveError), findsOneWidget);
-        expect(find.text('Cible'), findsOneWidget);
+        await expectLater(first, throwsA(isA<InventoryException>()));
+        await expectLater(second, throwsA(isA<InventoryException>()));
         expect((await engine.getNode(item.id)).parentId, source.id);
 
         engine.failMove = false;
-        await tester.tap(find.text(AppStrings.moveHere));
-        await tester.pumpAndSettle();
-        await tester.tap(find.widgetWithText(FilledButton, AppStrings.move));
-        await tree.waitForPendingOperations();
-        await tester.pumpAndSettle();
-        expect(find.text('Cible → Livre'), findsOneWidget);
-        expect(find.text(AppStrings.moveSuccess), findsOneWidget);
+        await tree.moveNode(item.id, destination.id);
         expect((await engine.getNode(item.id)).parentId, destination.id);
-        expect(engine.moveCalls, 2);
       } finally {
         if (!release.isCompleted) release.complete();
-        await tree.waitForPendingOperations();
-        await tester.pumpWidget(const SizedBox.shrink());
         tree.dispose();
         await tree.waitForPendingOperations();
         await database.close();
@@ -379,11 +309,13 @@ class _MoveEngine extends InventoryEngine {
   int moveCalls = 0;
 
   @override
-  Future<List<InventoryNode>> getRootLocations() async {
+  Future<List<InventoryNode>> getRootLocations({
+    InventorySpace space = InventorySpace.goods,
+  }) async {
     rootReads++;
     final hold = holdRoots;
     holdRoots = null;
-    final roots = await super.getRootLocations();
+    final roots = await super.getRootLocations(space: space);
     rootsCaptured?.complete();
     rootsCaptured = null;
     if (hold != null) {

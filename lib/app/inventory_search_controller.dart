@@ -13,34 +13,24 @@ class InventorySearchController extends ChangeNotifier {
   final InventoryTreeController _inventory;
   Timer? _debounce;
   int _readGeneration = 0;
-  int _categoriesGeneration = 0;
   bool _disposed = false;
   String _name = '';
   NodeType? _type;
-  String? _categoryId;
   List<InventoryNode>? _branchPath;
   List<InventorySearchResult> _results = const [];
-  List<InventoryCategory> _categories = const [];
   bool _loading = false;
-  bool _loadingCategories = false;
   String? _readError;
-  String? _categoriesError;
 
   String get name => _name;
   NodeType? get type => _type;
-  String? get categoryId => _categoryId;
   List<InventoryNode>? get branchPath => _branchPath;
   List<InventorySearchResult> get results => _results;
-  List<InventoryCategory> get categories => _categories;
   bool get loading => _loading;
-  bool get loadingCategories => _loadingCategories;
   String? get readError => _readError;
-  String? get categoriesError => _categoriesError;
 
   InventorySearchCriteria get criteria => InventorySearchCriteria(
     name: _name,
     type: _type,
-    categoryId: _categoryId,
     branchId: _branchPath?.last.id,
   );
 
@@ -71,12 +61,6 @@ class InventorySearchController extends ChangeNotifier {
     unawaited(refresh());
   }
 
-  void setCategory(String? categoryId) {
-    if (_disposed || categoryId == _categoryId) return;
-    _categoryId = categoryId;
-    unawaited(refresh());
-  }
-
   void setBranch(List<InventoryNode> path) {
     if (_disposed) return;
     if (path.isEmpty) throw ArgumentError.value(path, 'path');
@@ -87,7 +71,6 @@ class InventorySearchController extends ChangeNotifier {
   void resetFilters() {
     if (_disposed) return;
     _type = null;
-    _categoryId = null;
     _branchPath = null;
     unawaited(refresh());
   }
@@ -113,73 +96,37 @@ class InventorySearchController extends ChangeNotifier {
   Future<void> _read(InventorySearchCriteria current, int generation) async {
     try {
       final response = await _inventory.searchNodes(current);
-      if (_isCurrent(generation)) {
-        final path = response.branchPath;
-        if (current.branchId != null &&
-            (path == null ||
-                path.isEmpty ||
-                path.last.id != current.branchId)) {
-          throw const InventoryException(InventoryErrorCode.invalidStoredData);
-        }
-        _results = response.results;
-        if (current.branchId != null) {
-          _branchPath = path;
-        }
+      if (_disposed || generation != _readGeneration) return;
+      _results = response.results;
+      if (response.branchPath != null) {
+        _branchPath = List.unmodifiable(response.branchPath!);
       }
+      _readError = null;
     } on InventoryException catch (error) {
-      if (_isCurrent(generation)) {
-        _readError = switch (error.code) {
-          InventoryErrorCode.nodeNotFound ||
-          InventoryErrorCode.nodeInactive ||
-          InventoryErrorCode.parentCannotContain
-              when current.branchId != null =>
-            AppStrings.searchBranchUnavailable,
-          InventoryErrorCode.categoryNotFound =>
-            AppStrings.searchCategoryUnavailable,
-          _ => AppStrings.searchReadError,
-        };
-      }
+      if (_disposed || generation != _readGeneration) return;
+      _results = const [];
+      _readError = switch (error.code) {
+        InventoryErrorCode.parentNotFound ||
+        InventoryErrorCode.parentInactive ||
+        InventoryErrorCode.parentCannotContain ||
+        InventoryErrorCode.inventoryMismatch => AppStrings.searchBranchUnavailable,
+        _ => AppStrings.searchReadError,
+      };
     } on Exception {
-      if (_isCurrent(generation)) _readError = AppStrings.searchReadError;
+      if (_disposed || generation != _readGeneration) return;
+      _results = const [];
+      _readError = AppStrings.searchReadError;
     } finally {
-      if (_isCurrent(generation)) {
+      if (!_disposed && generation == _readGeneration) {
         _loading = false;
         notifyListeners();
       }
     }
   }
 
-  Future<void> loadCategories() async {
-    if (_disposed) return;
-    final generation = ++_categoriesGeneration;
-    _loadingCategories = true;
-    _categoriesError = null;
-    notifyListeners();
-    try {
-      final categories = await _inventory.readCategories();
-      if (!_disposed && generation == _categoriesGeneration) {
-        _categories = categories;
-      }
-    } on Exception {
-      if (!_disposed && generation == _categoriesGeneration) {
-        _categoriesError = AppStrings.categoriesReadError;
-      }
-    } finally {
-      if (!_disposed && generation == _categoriesGeneration) {
-        _loadingCategories = false;
-        notifyListeners();
-      }
-    }
-  }
-
-  bool _isCurrent(int generation) =>
-      !_disposed && generation == _readGeneration;
-
   @override
   void dispose() {
     _disposed = true;
-    _readGeneration++;
-    _categoriesGeneration++;
     _debounce?.cancel();
     super.dispose();
   }

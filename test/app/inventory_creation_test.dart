@@ -177,11 +177,11 @@ void main() {
   });
 
   testWidgets(
-    'la création et la modification d’une racine conservent le défilement',
+    'la création et la modification d’une racine conservent l’expansion',
     (tester) async {
       final database = InventoryDatabase(NativeDatabase.memory());
       final engine = _ControlledEngine(database);
-      for (var index = 0; index < 24; index++) {
+      for (var index = 0; index < 8; index++) {
         await engine.createNode(
           name: 'Lieu ${index.toString().padLeft(2, '0')}',
           type: NodeType.location,
@@ -195,18 +195,18 @@ void main() {
       try {
         controller.loadRoots();
         await controller.waitForPendingOperations();
+        final editedRoot = controller.roots!.firstWhere(
+          (node) => node.name == 'Lieu 03',
+        );
+        controller.toggle(editedRoot);
+        await controller.waitForPendingOperations();
         await tester.pumpWidget(
           MaterialApp(
             home: Scaffold(body: InventoryTreeScreen(controller: controller)),
           ),
         );
-        await tester.drag(find.byType(ListView), const Offset(0, -500));
         await tester.pumpAndSettle();
-        final previousOffset = tester
-            .state<ScrollableState>(find.byType(Scrollable))
-            .position
-            .pixels;
-        expect(previousOffset, greaterThan(0));
+        expect(controller.isExpanded(editedRoot.id), isTrue);
 
         engine.holdRoots = releaseRead;
         engine.rootsCaptured = capturedRead;
@@ -216,37 +216,26 @@ void main() {
         );
         await capturedRead.future;
         await tester.pump();
-        expect(find.byType(ListView), findsOneWidget);
+        expect(find.byType(SingleChildScrollView), findsWidgets);
 
         releaseRead.complete();
         await creation;
         await tester.pumpAndSettle();
+        expect(controller.isExpanded(editedRoot.id), isTrue);
         expect(
-          tester
-              .state<ScrollableState>(find.byType(Scrollable))
-              .position
-              .pixels,
-          previousOffset,
+          controller.roots!.map((node) => node.name),
+          contains('Nouvelle racine'),
         );
 
-        final editedRoot = controller.roots!.firstWhere(
-          (node) => node.name == 'Lieu 08',
-        );
-        controller.toggle(editedRoot);
-        await controller.waitForPendingOperations();
         await controller.updateNodeDetails(
           editedRoot.id,
-          name: 'Lieu 08 renommé',
-          description: 'Bureau',
+          name: 'Lieu 03 renommé',
         );
         await tester.pumpAndSettle();
         expect(controller.isExpanded(editedRoot.id), isTrue);
         expect(
-          tester
-              .state<ScrollableState>(find.byType(Scrollable))
-              .position
-              .pixels,
-          previousOffset,
+          controller.roots!.map((node) => node.name),
+          contains('Lieu 03 renommé'),
         );
 
         engine.failRoots = true;
@@ -255,7 +244,6 @@ void main() {
           type: NodeType.location,
         );
         await tester.pump();
-        expect(find.byType(ListView), findsOneWidget);
         expect(
           find.text('Impossible de charger l’inventaire.'),
           findsOneWidget,
@@ -269,6 +257,7 @@ void main() {
           controller.roots!.map((node) => node.name),
           contains('Autre racine'),
         );
+        expect(controller.isExpanded(editedRoot.id), isTrue);
       } finally {
         if (!releaseRead.isCompleted) releaseRead.complete();
         if (creation != null) await creation;
@@ -290,14 +279,12 @@ Future<void> _openRootCreation(
       home: Builder(
         builder: (context) => Scaffold(
           body: FilledButton(
-            onPressed: () => Navigator.push<bool>(
+            onPressed: () => Navigator.push<Object?>(
               context,
-              MaterialPageRoute<bool>(
+              MaterialPageRoute<Object?>(
                 builder: (_) => InventoryCreationScreen(
                   controller: controller,
-                  parent: null,
-                  allowedTypes: const [NodeType.location],
-                  initialType: NodeType.location,
+                  type: NodeType.location,
                 ),
               ),
             ),
@@ -326,11 +313,13 @@ class _ControlledEngine extends InventoryEngine {
   int creationCalls = 0;
 
   @override
-  Future<List<InventoryNode>> getRootLocations() async {
+  Future<List<InventoryNode>> getRootLocations({
+    InventorySpace space = InventorySpace.goods,
+  }) async {
     if (failRoots) {
       throw const InventoryException(InventoryErrorCode.storageFailure);
     }
-    final roots = await super.getRootLocations();
+    final roots = await super.getRootLocations(space: space);
     final hold = holdRoots;
     if (hold != null) {
       holdRoots = null;
@@ -359,12 +348,12 @@ class _ControlledEngine extends InventoryEngine {
   Future<InventoryNode> createNode({
     required String name,
     required NodeType type,
+    InventorySpace space = InventorySpace.goods,
     String? parentId,
-    String? description,
     String? condition,
     int? quantity,
     NodeValuation? valuation,
-    Iterable<String> categoryIds = const [],
+    int? stockReference,
   }) async {
     creationCalls++;
     if (failCreation) {
@@ -375,12 +364,12 @@ class _ControlledEngine extends InventoryEngine {
     final result = await super.createNode(
       name: name,
       type: type,
+      space: space,
       parentId: parentId,
-      description: description,
       condition: condition,
       quantity: quantity,
       valuation: valuation,
-      categoryIds: categoryIds,
+      stockReference: stockReference,
     );
     creationCommitted?.complete();
     return result;

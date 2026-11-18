@@ -1,9 +1,13 @@
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart' show SqliteException;
+// ignore: experimental_member_use
+import 'package:drift/remote.dart' show DriftRemoteException;
 
 import '../database/inventory_database.dart';
 import 'inventory_exception.dart';
 import 'inventory_models.dart';
+import 'inventory_name.dart';
+import 'stock_quantity.dart';
 import 'uuid_generator.dart';
 
 /// Single entry point for every inventory change. Each public operation runs
@@ -17,7 +21,7 @@ class InventoryEngine {
        _generateId = generateId ?? generateUuidV4;
 
   static const defaultItemQuantity = 1;
-  static const defaultFinancialCents = 0;
+  static const maxNameLength = InventoryName.maxLength;
   static const _sqliteConstraintResultCode = 19;
 
   final InventoryDatabase _db;
@@ -29,7 +33,11 @@ class InventoryEngine {
   Future<InventoryNode> getNode(String nodeId) =>
       _run(() async => _toNode(await _requireNode(nodeId)));
 
-  Future<List<InventoryNode>> getRootLocations() => _run(() async {
+  /// Active root locations. Defaults to [InventorySpace.goods] so V1 callers
+  /// keep seeing the Biens hierarchy after migration.
+  Future<List<InventoryNode>> getRootLocations({
+    InventorySpace space = InventorySpace.goods,
+  }) => _run(() async {
     final inventoryId = await _requireInventoryId();
     final rows =
         await (_db.select(_db.nodes)
@@ -37,6 +45,7 @@ class InventoryEngine {
                 (node) =>
                     node.inventoryId.equals(inventoryId) &
                     node.parentId.isNull() &
+                    node.space.equals(space.storageValue) &
                     node.nodeType.equals(NodeType.location.storageValue) &
                     node.status.equals(NodeStatus.active.storageValue),
               )
@@ -56,7 +65,9 @@ class InventoryEngine {
                     node.parentId.equals(parentId) &
                     node.status.equals(NodeStatus.active.storageValue),
               )
-              ..orderBy(_byName))
+              // Direct simple items first, then locations / item-containers;
+              // alphabetical within each group. Presentation only — parent_id unchanged.
+              ..orderBy(_byTreeDisplay))
             .get();
     return rows.map(_toNode).toList();
   });
@@ -77,6 +88,99 @@ class InventoryEngine {
     return chain.reversed.map(_toNode).toList();
   });
 
+  /// Financial totals for each [nodeIds] root: own financial value (items) plus
+  /// every active financial descendant. Independent of UI expansion. Sentimental
+  /// values are ignored. Overflow is reported per root without wrapping.
+  Future<Map<String, SubtreeFinancialTotal>> getSubtreeFinancialTotals(
+    Iterable<String> nodeIds,
+  ) => _run(() async {
+    final ids = [
+      ...{...nodeIds},
+    ];
+    if (ids.isEmpty) return {};
+
+    final inventoryId = await _requireInventoryId();
+    final valuesSql = ids.map((_) => '(?)').join(', ');
+    final variables = <Variable>[
+      for (final id in ids) Variable.withString(id),
+      Variable.withString(inventoryId),
+      Variable.withString(inventoryId),
+    ];
+
+    final rows = await _db
+        .customSelect(
+          '''
+      WITH RECURSIVE
+      roots(root_id) AS (VALUES $valuesSql),
+      tree(root_id, id, visited) AS (
+        SELECT r.root_id, n.id, '|' || hex(CAST(n.id AS BLOB)) || '|'
+        FROM roots AS r
+        JOIN nodes AS n ON n.id = r.root_id
+        WHERE n.inventory_id = ? AND n.status = 'active'
+        UNION ALL
+        SELECT t.root_id, child.id,
+               t.visited || hex(CAST(child.id AS BLOB)) || '|'
+        FROM tree AS t
+        JOIN nodes AS child ON child.parent_id = t.id
+        WHERE child.inventory_id = ?
+          AND child.status = 'active'
+          AND instr(
+            t.visited,
+            '|' || hex(CAST(child.id AS BLOB)) || '|'
+          ) = 0
+      )
+      SELECT t.root_id AS root_id,
+             n.financial_value_cents AS unit_cents,
+             n.quantity AS quantity
+      FROM tree AS t
+      JOIN nodes AS n ON n.id = t.id
+      WHERE n.value_mode = 'financial'
+        AND n.financial_value_cents IS NOT NULL
+        AND n.quantity IS NOT NULL
+        AND n.node_type IN ('item', 'item_container')
+      ''',
+          variables: variables,
+          readsFrom: {_db.nodes},
+        )
+        .get();
+
+    final contributions = <String, List<({int unit, int quantity})>>{
+      for (final id in ids) id: <({int unit, int quantity})>[],
+    };
+    for (final row in rows) {
+      final rootId = row.read<String>('root_id');
+      final list = contributions[rootId];
+      if (list == null) continue;
+      list.add((
+        unit: row.read<int>('unit_cents'),
+        quantity: row.read<int>('quantity'),
+      ));
+    }
+
+    final result = <String, SubtreeFinancialTotal>{};
+    for (final id in ids) {
+      final items = contributions[id] ?? const [];
+      if (items.isEmpty) {
+        result[id] = const SubtreeFinancialNone();
+        continue;
+      }
+      try {
+        var sum = 0;
+        for (final item in items) {
+          final line = FinancialValuation(
+            item.unit,
+          ).totalForQuantity(item.quantity);
+          sum = _addCents(sum, line);
+        }
+        result[id] = SubtreeFinancialAmount(sum);
+      } on InventoryException catch (error) {
+        if (error.code != InventoryErrorCode.financialTotalOverflow) rethrow;
+        result[id] = const SubtreeFinancialOverflow();
+      }
+    }
+    return result;
+  });
+
   /// Finds active nodes using intersecting filters. A branch includes its
   /// descendants, not the branch node itself.
   Future<InventorySearchResponse> searchNodes(
@@ -94,14 +198,13 @@ class InventoryEngine {
       if (!_nodeType(branch).canContain) {
         throw const InventoryException(InventoryErrorCode.parentCannotContain);
       }
+      if (InventorySpace.parse(branch.space) != criteria.space) {
+        throw const InventoryException(InventoryErrorCode.spaceMismatch);
+      }
       branchPath = (await _validatedChain(
         branch,
       )).reversed.map(_toNode).toList();
     }
-    if (criteria.categoryId case final categoryId?) {
-      await _requireCategory(categoryId, inventoryId);
-    }
-
     final variables = <Variable>[];
     final branchCte = branchId == null
         ? ''
@@ -109,21 +212,30 @@ class InventoryEngine {
           descendants(id) AS (
             SELECT id FROM nodes
             WHERE inventory_id = ? AND parent_id = ? AND status = 'active'
+              AND space = ?
             UNION
             SELECT child.id FROM nodes AS child
             JOIN descendants AS d ON child.parent_id = d.id
             WHERE child.inventory_id = ? AND child.status = 'active'
+              AND child.space = ?
           ),
         ''';
     if (branchId != null) {
       variables.addAll([
         Variable.withString(inventoryId),
         Variable.withString(branchId),
+        Variable.withString(criteria.space.storageValue),
         Variable.withString(inventoryId),
+        Variable.withString(criteria.space.storageValue),
       ]);
     }
-    final filters = <String>['n.inventory_id = ?', "n.status = 'active'"];
+    final filters = <String>[
+      'n.inventory_id = ?',
+      "n.status = 'active'",
+      'n.space = ?',
+    ];
     variables.add(Variable.withString(inventoryId));
+    variables.add(Variable.withString(criteria.space.storageValue));
     final name = criteria.name.trim();
     if (name.isNotEmpty) {
       filters.add('moor_contains(n.name, ?, 0) = 1');
@@ -132,16 +244,6 @@ class InventoryEngine {
     if (criteria.type case final type?) {
       filters.add('n.node_type = ?');
       variables.add(Variable.withString(type.storageValue));
-    }
-    if (criteria.categoryId case final categoryId?) {
-      filters.add('''
-        EXISTS (
-          SELECT 1 FROM node_categories AS nc
-          WHERE nc.inventory_id = n.inventory_id
-            AND nc.node_id = n.id AND nc.category_id = ?
-        )
-      ''');
-      variables.add(Variable.withString(categoryId));
     }
     if (branchId != null) {
       filters.add('n.id IN (SELECT id FROM descendants)');
@@ -154,7 +256,8 @@ class InventoryEngine {
       WITH RECURSIVE
       $branchCte
       matches AS (
-        SELECT n.id, n.name, n.node_type, n.quantity, n.parent_id
+        SELECT n.id, n.name, n.node_type, n.quantity, n.parent_id,
+               n.value_mode, n.financial_value_cents, n.sentimental_value
         FROM nodes AS n
         WHERE ${filters.join(' AND ')}
       ),
@@ -170,17 +273,18 @@ class InventoryEngine {
         JOIN nodes AS parent ON parent.id = p.parent_id
           AND parent.inventory_id = ?
         WHERE parent.status = 'active'
-          AND parent.node_type IN ('location', 'container', 'item_container')
+          AND parent.node_type IN ('location', 'item_container')
           AND instr(p.visited, '|' || hex(CAST(parent.id AS BLOB)) || '|') = 0
       )
-      SELECT m.id, m.name, m.node_type, m.quantity, p.full_path
+      SELECT m.id, m.name, m.node_type, m.quantity, p.full_path,
+             m.value_mode, m.financial_value_cents, m.sentimental_value
       FROM matches AS m
       LEFT JOIN paths AS p ON p.target_id = m.id
         AND p.parent_id IS NULL AND p.node_type = 'location'
       ORDER BY m.name COLLATE NOCASE, m.id
       ''',
           variables: variables,
-          readsFrom: {_db.nodes, _db.nodeCategories},
+          readsFrom: {_db.nodes},
         )
         .get();
     final results = <InventorySearchResult>[];
@@ -189,17 +293,25 @@ class InventoryEngine {
       if (path == null) {
         throw const InventoryException(InventoryErrorCode.invalidHierarchy);
       }
+      final type = _parse(
+        NodeType.values,
+        (value) => value.storageValue,
+        row.read<String>('node_type'),
+      );
       results.add(
         InventorySearchResult(
           nodeId: row.read<String>('id'),
           name: row.read<String>('name'),
-          type: _parse(
-            NodeType.values,
-            (type) => type.storageValue,
-            row.read<String>('node_type'),
-          ),
+          type: type,
           quantity: row.readNullable<int>('quantity'),
           path: path,
+          valuation: type.isItem
+              ? _valuationFromColumns(
+                  row.readNullable<String>('value_mode'),
+                  row.readNullable<int>('financial_value_cents'),
+                  row.readNullable<int>('sentimental_value'),
+                )
+              : null,
         ),
       );
     }
@@ -207,13 +319,16 @@ class InventoryEngine {
   });
 
   /// Minimal history of withdrawn items, most recent first.
-  Future<List<InventoryNode>> getWithdrawnItems() => _run(() async {
+  Future<List<InventoryNode>> getWithdrawnItems({
+    InventorySpace space = InventorySpace.goods,
+  }) => _run(() async {
     final inventoryId = await _requireInventoryId();
     final rows =
         await (_db.select(_db.nodes)
               ..where(
                 (node) =>
                     node.inventoryId.equals(inventoryId) &
+                    node.space.equals(space.storageValue) &
                     node.status.equals(NodeStatus.withdrawn.storageValue),
               )
               ..orderBy([
@@ -226,32 +341,59 @@ class InventoryEngine {
 
   // Node writes.
 
-  /// Creates a node. Item types default to quantity 1 and a 0 $ financial
-  /// value. Categories, when given, are associated in the same transaction.
+  /// Creates a node. Item types default to quantity 1 with no price set.
+  /// Defaults to [InventorySpace.goods] for V1 callers.
+  ///
+  /// Stock products always start at [StockLevel.full]. Optional
+  /// [stockReference] is a simple total hint (not a unit of measure).
   Future<InventoryNode> createNode({
     required String name,
     required NodeType type,
+    InventorySpace space = InventorySpace.goods,
     String? parentId,
-    String? description,
     String? condition,
     int? quantity,
     NodeValuation? valuation,
-    Iterable<String> categoryIds = const [],
+    int? stockReference,
   }) => _run(() async {
-    final normalizedName = _normalizeName(name);
-    final categories = categoryIds.toSet();
-    if (!type.isItem &&
-        (quantity != null || valuation != null || categories.isNotEmpty)) {
+    final normalizedName = InventoryName.normalizeForStorage(name);
+    final isStock = space == InventorySpace.stock;
+    final isStockProduct = isStock && type == NodeType.item;
+    final isStockContainer = isStock && type == NodeType.itemContainer;
+
+    if (isStock) {
+      if (valuation != null) {
+        throw const InventoryException(InventoryErrorCode.requiresItem);
+      }
+      if (!isStockProduct && quantity != null) {
+        throw const InventoryException(InventoryErrorCode.requiresItem);
+      }
+      if (!isStockProduct && stockReference != null) {
+        throw const InventoryException(InventoryErrorCode.requiresItem);
+      }
+    } else if (!type.isItem && (quantity != null || valuation != null)) {
       throw const InventoryException(InventoryErrorCode.requiresItem);
     }
-    final itemQuantity = type.isItem ? (quantity ?? defaultItemQuantity) : null;
-    final itemValuation = type.isItem
-        ? (valuation ?? const FinancialValuation(defaultFinancialCents))
-        : null;
-    if (itemQuantity != null) _validateQuantity(itemQuantity);
-    if (itemValuation != null) _validateValuation(itemValuation);
-    if (itemQuantity != null && itemValuation != null) {
-      _validateFinancialTotal(itemValuation, itemQuantity);
+    if (isStockProduct && stockReference != null && stockReference < 1) {
+      throw const InventoryException(InventoryErrorCode.invalidQuantity);
+    }
+
+    final int? itemQuantity;
+    final NodeValuation? itemValuation;
+    if (isStockProduct) {
+      itemQuantity = StockLevel.full.storageQuarters;
+      itemValuation = null;
+    } else if (isStockContainer || type == NodeType.location) {
+      itemQuantity = null;
+      itemValuation = null;
+    } else {
+      itemQuantity = type.isItem ? (quantity ?? defaultItemQuantity) : null;
+      itemValuation = type.isItem ? valuation : null;
+      if (itemQuantity != null) _validateQuantity(itemQuantity);
+      if (itemValuation != null) _validateValuation(itemValuation);
+      if (itemQuantity != null && itemValuation != null) {
+        _validateFinancialTotal(itemValuation, itemQuantity);
+      }
     }
 
     final inventoryId = await _requireInventoryId();
@@ -260,7 +402,7 @@ class InventoryEngine {
         throw const InventoryException(InventoryErrorCode.parentRequired);
       }
     } else {
-      await _requireValidParent(parentId, inventoryId);
+      await _requireValidParent(parentId, inventoryId, childSpace: space);
     }
 
     final id = _generateId();
@@ -272,21 +414,32 @@ class InventoryEngine {
             id: id,
             inventoryId: inventoryId,
             parentId: Value(parentId),
+            space: Value(space.storageValue),
             name: normalizedName,
             nodeType: type.storageValue,
             quantity: Value(itemQuantity),
-            description: Value(_normalizeOptional(description)),
+            description: const Value(null),
             condition: Value(_normalizeOptional(condition)),
             valueMode: Value(_valueMode(itemValuation)),
             financialValueCents: Value(_financialCents(itemValuation)),
             sentimentalValue: Value(_sentimentalRating(itemValuation)),
+            stockUnit: Value(isStockProduct ? stockUnitSentinel : null),
+            unitCostCents: const Value(null),
+            stockReference: Value(isStockProduct ? stockReference : null),
             createdAt: now,
             updatedAt: now,
           ),
         );
-    for (final categoryId in categories) {
-      await _requireCategory(categoryId, inventoryId);
-      await _insertAssociation(inventoryId, id, categoryId);
+    if (isStockProduct) {
+      await _insertStockMovement(
+        inventoryId: inventoryId,
+        nodeId: id,
+        type: StockMovementType.initial,
+        deltaQuarters: StockLevel.full.storageQuarters,
+        balanceAfterQuarters: StockLevel.full.storageQuarters,
+        unit: stockUnitSentinel,
+        createdAt: now,
+      );
     }
     return _toNode(await _requireNode(id));
   });
@@ -295,13 +448,15 @@ class InventoryEngine {
   Future<InventoryNode> updateDetails(
     String nodeId, {
     required String name,
-    String? description,
     String? condition,
     int? quantity,
   }) => _run(() async {
-    final normalizedName = _normalizeName(name);
     final node = await _requireNode(nodeId);
     _requireActive(node);
+    final normalizedName = InventoryName.normalizeForStorage(
+      name,
+      existingStored: node.name,
+    );
     if (quantity != null) {
       // The outer transaction also rolls back this quantity if the text fails.
       await updateQuantity(nodeId, quantity);
@@ -310,7 +465,6 @@ class InventoryEngine {
       nodeId,
       NodesCompanion(
         name: Value(normalizedName),
-        description: Value(_normalizeOptional(description)),
         condition: Value(_normalizeOptional(condition)),
       ),
     );
@@ -320,18 +474,196 @@ class InventoryEngine {
   Future<InventoryNode> updateQuantity(String nodeId, int quantity) =>
       _run(() async {
         final node = await _requireActiveItem(nodeId);
+        if (InventorySpace.parse(node.space) == InventorySpace.stock) {
+          // Stock balances change only via historized movements.
+          throw const InventoryException(InventoryErrorCode.invalidQuantity);
+        }
         _validateQuantity(quantity);
-        _validateFinancialTotal(_toValuation(node), quantity);
+        final valuation = _toValuation(node);
+        if (valuation != null) {
+          _validateFinancialTotal(valuation, quantity);
+        }
         await _writeNode(node.id, NodesCompanion(quantity: Value(quantity)));
         return _toNode(await _requireNode(nodeId));
       });
 
+  /// Updates Stock product name, parent, and optional reference quantity.
+  Future<InventoryNode> updateStockProduct(
+    String nodeId, {
+    required String name,
+    String? parentId,
+    int? stockReference,
+  }) => _run(() async {
+    final node = await _requireStockProduct(nodeId);
+    final normalizedName = InventoryName.normalizeForStorage(
+      name,
+      existingStored: node.name,
+    );
+    if (stockReference != null && stockReference < 1) {
+      throw const InventoryException(InventoryErrorCode.invalidQuantity);
+    }
+    if (parentId != node.parentId) {
+      await _writeMove(nodeId, parentId);
+    }
+    await _writeNode(
+      nodeId,
+      NodesCompanion(
+        name: Value(normalizedName),
+        stockReference: Value(stockReference),
+        stockUnit: const Value(stockUnitSentinel),
+        unitCostCents: const Value(null),
+      ),
+    );
+    return _toNode(await _requireNode(nodeId));
+  });
+
+  /// Cycles the visual Stock level: 1 → ½ → ¼ → 0 → 1.
+  Future<InventoryNode> cycleStockLevel(String nodeId) => _run(() async {
+    final node = await _requireStockProduct(nodeId);
+    final current = StockLevel.fromStoredQuarters(node.quantity!);
+    final next = current.next;
+    final oldQ = current.storageQuarters;
+    final newQ = next.storageQuarters;
+    await _writeNode(nodeId, NodesCompanion(quantity: Value(newQ)));
+    await _insertStockMovement(
+      inventoryId: node.inventoryId,
+      nodeId: nodeId,
+      type: StockMovementType.correct,
+      deltaQuarters: newQ - oldQ,
+      balanceAfterQuarters: newQ,
+      unit: stockUnitSentinel,
+      createdAt: _timestamp(),
+    );
+    return _toNode(await _requireNode(nodeId));
+  });
+
+  /// Sets an explicit Stock level (used by tests / rare corrections).
+  Future<InventoryNode> setStockLevel(String nodeId, StockLevel level) =>
+      _run(() async {
+        final node = await _requireStockProduct(nodeId);
+        final oldQ = StockLevel.fromStoredQuarters(node.quantity!).storageQuarters;
+        final newQ = level.storageQuarters;
+        if (oldQ == newQ) {
+          return _toNode(node);
+        }
+        await _writeNode(nodeId, NodesCompanion(quantity: Value(newQ)));
+        await _insertStockMovement(
+          inventoryId: node.inventoryId,
+          nodeId: nodeId,
+          type: StockMovementType.correct,
+          deltaQuarters: newQ - oldQ,
+          balanceAfterQuarters: newQ,
+          unit: stockUnitSentinel,
+          createdAt: _timestamp(),
+        );
+        return _toNode(await _requireNode(nodeId));
+      });
+
+  Future<List<StockLedgerEntry>> getStockMovements(String nodeId) =>
+      _run(() async {
+        final node = await _requireStockProduct(nodeId);
+        final rows =
+            await (_db.select(_db.stockMovements)
+                  ..where(
+                    (row) =>
+                        row.inventoryId.equals(node.inventoryId) &
+                        row.nodeId.equals(nodeId),
+                  )
+                  ..orderBy([
+                    (row) => OrderingTerm.desc(row.createdAt),
+                    (row) => OrderingTerm.desc(row.id),
+                  ]))
+                .get();
+        return rows.map(_toStockLedgerEntry).toList(growable: false);
+      });
+
+  /// Recent Stock ledger rows with product names (space-isolated).
+  Future<List<StockLedgerEntryNamed>> getRecentStockMovements({
+    int limit = 80,
+  }) => _run(() async {
+    final inventoryId = await _requireInventoryId();
+    final rows = await _db
+        .customSelect(
+          '''
+SELECT m.id, m.node_id, m.movement_type, m.delta_quarters,
+       m.balance_after_quarters, m.unit, m.created_at, n.name AS product_name
+FROM stock_movements m
+INNER JOIN nodes n
+  ON n.inventory_id = m.inventory_id AND n.id = m.node_id
+WHERE m.inventory_id = ?
+  AND n.space = 'stock'
+ORDER BY m.created_at DESC, m.id DESC
+LIMIT ?
+''',
+          variables: [
+            Variable.withString(inventoryId),
+            Variable.withInt(limit),
+          ],
+          readsFrom: {_db.stockMovements, _db.nodes},
+        )
+        .get();
+    return [
+      for (final row in rows)
+        StockLedgerEntryNamed(
+          entry: StockLedgerEntry(
+            id: row.read<String>('id'),
+            nodeId: row.read<String>('node_id'),
+            type: StockMovementType.parse(row.read<String>('movement_type')),
+            deltaQuarters: row.read<int>('delta_quarters'),
+            balanceAfterQuarters: row.read<int>('balance_after_quarters'),
+            unit: row.read<String>('unit'),
+            createdAt: _parseDate(row.read<String>('created_at')),
+          ),
+          productName: row.read<String>('product_name'),
+        ),
+    ];
+  });
+
+  Future<void> _insertStockMovement({
+    required String inventoryId,
+    required String nodeId,
+    required StockMovementType type,
+    required int deltaQuarters,
+    required int balanceAfterQuarters,
+    required String unit,
+    required String createdAt,
+  }) {
+    return _db
+        .into(_db.stockMovements)
+        .insert(
+          StockMovementsCompanion.insert(
+            id: _generateId(),
+            inventoryId: inventoryId,
+            nodeId: nodeId,
+            movementType: type.storageValue,
+            deltaQuarters: deltaQuarters,
+            balanceAfterQuarters: balanceAfterQuarters,
+            unit: unit,
+            createdAt: createdAt,
+          ),
+        );
+  }
+
+  Future<Node> _requireStockProduct(String nodeId) async {
+    final node = await _requireActiveItem(nodeId);
+    if (InventorySpace.parse(node.space) != InventorySpace.stock ||
+        _nodeType(node) != NodeType.item) {
+      throw const InventoryException(InventoryErrorCode.requiresItem);
+    }
+    if (node.stockUnit == null || node.quantity == null) {
+      throw const InventoryException(InventoryErrorCode.invalidStoredData);
+    }
+    return node;
+  }
+
   /// Sets the single active valuation; the other mode is always cleared.
-  Future<InventoryNode> setValuation(String nodeId, NodeValuation valuation) =>
+  Future<InventoryNode> setValuation(String nodeId, NodeValuation? valuation) =>
       _run(() async {
         final node = await _requireActiveItem(nodeId);
-        _validateValuation(valuation);
-        _validateFinancialTotal(valuation, node.quantity!);
+        if (valuation != null) {
+          _validateValuation(valuation);
+          _validateFinancialTotal(valuation, node.quantity!);
+        }
         await _writeNode(
           node.id,
           NodesCompanion(
@@ -343,36 +675,125 @@ class InventoryEngine {
         return _toNode(await _requireNode(nodeId));
       });
 
-  /// Saves all item fields and category changes in one transaction.
-  Future<({InventoryNode node, List<InventoryCategory> categories})>
-  updateItemDetails(
+  /// Saves item fields and optional valuation in one transaction.
+  Future<InventoryNode> updateItemDetails(
     String nodeId, {
     required String name,
-    String? description,
     String? condition,
     required int quantity,
-    required NodeValuation valuation,
-    required Iterable<String> categoryIds,
-    Iterable<String> newCategoryNames = const [],
+    NodeValuation? valuation,
   }) => _run(() async {
-    final normalizedName = _normalizeName(name);
-    final node = await _requireActiveItem(nodeId);
-    _validateQuantity(quantity);
-    _validateValuation(valuation);
-    _validateFinancialTotal(valuation, quantity);
-    final selected = categoryIds.toSet();
-    for (final id in selected) {
-      await _requireCategory(id, node.inventoryId);
+    await _writeItemDetails(
+      nodeId,
+      name: name,
+      condition: condition,
+      quantity: quantity,
+      valuation: valuation,
+    );
+    return _toNode(await _requireNode(nodeId));
+  });
+
+  /// Moves [nodeId] with all its descendants by changing only its parent.
+  /// A null [newParentId] is accepted only for a location becoming a root.
+  Future<InventoryNode> moveNode(String nodeId, String? newParentId) =>
+      _run(() async {
+        await _writeMove(nodeId, newParentId);
+        return _toNode(await _requireNode(nodeId));
+      });
+
+  /// Updates fields and optionally moves / converts item kind in one
+  /// transaction so a failed step never leaves a partial update committed.
+  Future<InventoryNode> updateAndOptionallyMove(
+    String nodeId, {
+    required String name,
+    String? condition,
+    int? quantity,
+    NodeValuation? valuation,
+    required bool isItem,
+    NodeType? itemKind,
+    String? newParentId,
+    required bool move,
+  }) => _run(() async {
+    if (itemKind != null) {
+      await _writeItemKind(nodeId, itemKind);
     }
-    for (final name in newCategoryNames) {
-      final category = await createCategory(name);
-      selected.add(category.id);
+    if (isItem) {
+      await _writeItemDetails(
+        nodeId,
+        name: name,
+        condition: condition,
+        quantity: quantity!,
+        valuation: valuation,
+      );
+    } else {
+      final node = await _requireNode(nodeId);
+      _requireActive(node);
+      final normalizedName = InventoryName.normalizeForStorage(
+        name,
+        existingStored: node.name,
+      );
+      await _writeNode(
+        nodeId,
+        NodesCompanion(
+          name: Value(normalizedName),
+          condition: Value(_normalizeOptional(condition)),
+        ),
+      );
+    }
+    if (move) {
+      await _writeMove(nodeId, newParentId);
+    }
+    return _toNode(await _requireNode(nodeId));
+  });
+
+  /// Converts an active item between [NodeType.item] and
+  /// [NodeType.itemContainer] without changing id, valuation or children.
+  Future<InventoryNode> convertItemKind(String nodeId, NodeType target) =>
+      _run(() async {
+        await _writeItemKind(nodeId, target);
+        return _toNode(await _requireNode(nodeId));
+      });
+
+  Future<void> _writeItemKind(String nodeId, NodeType target) async {
+    if (target != NodeType.item && target != NodeType.itemContainer) {
+      throw const InventoryException(InventoryErrorCode.requiresItem);
+    }
+    final node = await _requireActiveItem(nodeId);
+    final current = _nodeType(node);
+    if (current == target) return;
+    if (!target.canContain) {
+      await _requireNoChildren(node);
+    }
+    await _writeNode(
+      nodeId,
+      NodesCompanion(nodeType: Value(target.storageValue)),
+    );
+  }
+
+  Future<void> _writeItemDetails(
+    String nodeId, {
+    required String name,
+    String? condition,
+    required int quantity,
+    NodeValuation? valuation,
+  }) async {
+    final node = await _requireActiveItem(nodeId);
+    if (InventorySpace.parse(node.space) == InventorySpace.stock) {
+      throw const InventoryException(InventoryErrorCode.invalidQuantity);
+    }
+    final normalizedName = InventoryName.normalizeForStorage(
+      name,
+      existingStored: node.name,
+    );
+    _validateQuantity(quantity);
+    if (valuation != null) {
+      _validateValuation(valuation);
+      _validateFinancialTotal(valuation, quantity);
     }
     await _writeNode(
       nodeId,
       NodesCompanion(
         name: Value(normalizedName),
-        description: Value(_normalizeOptional(description)),
         condition: Value(_normalizeOptional(condition)),
         quantity: Value(quantity),
         valueMode: Value(_valueMode(valuation)),
@@ -380,48 +801,34 @@ class InventoryEngine {
         sentimentalValue: Value(_sentimentalRating(valuation)),
       ),
     );
-    final previous = (await getNodeCategories(
-      nodeId,
-    )).map((category) => category.id).toSet();
-    for (final id in previous.difference(selected)) {
-      await unassignCategory(nodeId, id);
-    }
-    for (final id in selected.difference(previous)) {
-      await assignCategory(nodeId, id);
-    }
-    return (
-      node: _toNode(await _requireNode(nodeId)),
-      categories: await getNodeCategories(nodeId),
-    );
-  });
+  }
 
-  /// Moves [nodeId] with all its descendants by changing only its parent.
-  /// A null [newParentId] is accepted only for a location becoming a root.
-  Future<InventoryNode> moveNode(String nodeId, String? newParentId) =>
-      _run(() async {
-        final node = await _requireNode(nodeId);
-        _requireActive(node);
-        final type = _nodeType(node);
-        if (newParentId == null) {
-          if (!type.canBeRoot) {
-            throw const InventoryException(InventoryErrorCode.parentRequired);
-          }
-        } else {
-          if (newParentId == nodeId) {
-            throw const InventoryException(InventoryErrorCode.cycleDetected);
-          }
-          await _requireValidParent(
-            newParentId,
-            node.inventoryId,
-            movingNodeId: nodeId,
-          );
-        }
-        await _writeNode(nodeId, NodesCompanion(parentId: Value(newParentId)));
-        return _toNode(await _requireNode(nodeId));
-      });
+  Future<void> _writeMove(String nodeId, String? newParentId) async {
+    final node = await _requireNode(nodeId);
+    _requireActive(node);
+    final type = _nodeType(node);
+    final space = InventorySpace.parse(node.space);
+    if (newParentId == null) {
+      if (!type.canBeRoot) {
+        throw const InventoryException(InventoryErrorCode.parentRequired);
+      }
+    } else {
+      if (newParentId == nodeId) {
+        throw const InventoryException(InventoryErrorCode.cycleDetected);
+      }
+      await _requireValidParent(
+        newParentId,
+        node.inventoryId,
+        childSpace: space,
+        movingNodeId: nodeId,
+      );
+    }
+    // Ordinary moves never change space; cross-space transfers are later ops.
+    await _writeNode(nodeId, NodesCompanion(parentId: Value(newParentId)));
+  }
 
   /// Withdraws an empty item from the active inventory while keeping its
-  /// information, categories, reason and date as minimal history (D07).
+  /// reason and date as minimal history (D07).
   Future<InventoryNode> withdrawItem(String nodeId, WithdrawalReason reason) =>
       _run(() async {
         final node = await _requireActiveItem(nodeId);
@@ -439,128 +846,12 @@ class InventoryEngine {
       });
 
   /// Permanently deletes an active node created by mistake, without history.
-  /// Only its category associations are removed with it (D02, D07).
   Future<void> deleteNodePermanently(String nodeId) => _run(() async {
     final node = await _requireNode(nodeId);
     _requireActive(node);
     await _requireNoChildren(node);
     await (_db.delete(_db.nodes)..where((row) => row.id.equals(nodeId))).go();
   });
-
-  // Categories.
-
-  Future<List<InventoryCategory>> getCategories() => _run(() async {
-    final inventoryId = await _requireInventoryId();
-    final rows =
-        await (_db.select(_db.categories)
-              ..where((category) => category.inventoryId.equals(inventoryId))
-              ..orderBy([
-                (category) => OrderingTerm.asc(category.name),
-                (category) => OrderingTerm.asc(category.id),
-              ]))
-            .get();
-    return rows.map(_toCategory).toList();
-  });
-
-  Future<InventoryCategory> createCategory(String name) => _run(() async {
-    final normalizedName = _normalizeName(name);
-    final inventoryId = await _requireInventoryId();
-    final id = _generateId();
-    final now = _timestamp();
-    await _db
-        .into(_db.categories)
-        .insert(
-          CategoriesCompanion.insert(
-            id: id,
-            inventoryId: inventoryId,
-            name: normalizedName,
-            createdAt: now,
-            updatedAt: now,
-          ),
-        );
-    return _toCategory(await _requireCategory(id, inventoryId));
-  });
-
-  Future<InventoryCategory> renameCategory(String categoryId, String name) =>
-      _run(() async {
-        final normalizedName = _normalizeName(name);
-        final inventoryId = await _requireInventoryId();
-        await _requireCategory(categoryId, inventoryId);
-        await (_db.update(
-          _db.categories,
-        )..where((category) => category.id.equals(categoryId))).write(
-          CategoriesCompanion(
-            name: Value(normalizedName),
-            updatedAt: Value(_timestamp()),
-          ),
-        );
-        return _toCategory(await _requireCategory(categoryId, inventoryId));
-      });
-
-  /// Deletes a category and only its associations; items are never touched.
-  Future<void> deleteCategory(String categoryId) => _run(() async {
-    final inventoryId = await _requireInventoryId();
-    await _requireCategory(categoryId, inventoryId);
-    await (_db.delete(
-      _db.categories,
-    )..where((category) => category.id.equals(categoryId))).go();
-  });
-
-  Future<List<InventoryCategory>> getNodeCategories(String nodeId) =>
-      _run(() async {
-        final node = await _requireNode(nodeId);
-        final query =
-            _db.select(_db.categories).join([
-                innerJoin(
-                  _db.nodeCategories,
-                  _db.nodeCategories.categoryId.equalsExp(_db.categories.id) &
-                      _db.nodeCategories.inventoryId.equalsExp(
-                        _db.categories.inventoryId,
-                      ),
-                ),
-              ])
-              ..where(
-                _db.nodeCategories.nodeId.equals(node.id) &
-                    _db.nodeCategories.inventoryId.equals(node.inventoryId),
-              )
-              ..orderBy([
-                OrderingTerm.asc(_db.categories.name),
-                OrderingTerm.asc(_db.categories.id),
-              ]);
-        final rows = await query.get();
-        return rows
-            .map((row) => _toCategory(row.readTable(_db.categories)))
-            .toList();
-      });
-
-  Future<void> assignCategory(String nodeId, String categoryId) =>
-      _run(() async {
-        final node = await _requireActiveItem(nodeId);
-        await _requireCategory(categoryId, node.inventoryId);
-        if (await _findAssociation(nodeId, categoryId) != null) {
-          throw const InventoryException(
-            InventoryErrorCode.categoryAlreadyAssigned,
-          );
-        }
-        await _insertAssociation(node.inventoryId, nodeId, categoryId);
-      });
-
-  Future<void> unassignCategory(String nodeId, String categoryId) => _run(
-    () async {
-      final node = await _requireActiveItem(nodeId);
-      await _requireCategory(categoryId, node.inventoryId);
-      final deleted =
-          await (_db.delete(_db.nodeCategories)..where(
-                (association) =>
-                    association.nodeId.equals(nodeId) &
-                    association.categoryId.equals(categoryId),
-              ))
-              .go();
-      if (deleted == 0) {
-        throw const InventoryException(InventoryErrorCode.categoryNotAssigned);
-      }
-    },
-  );
 
   // Transaction and error boundary.
 
@@ -569,17 +860,34 @@ class InventoryEngine {
       return await _db.transaction(action);
     } on InventoryException {
       rethrow;
+    } on DriftRemoteException catch (error) {
+      // Production uses a Drift background isolate; SQLite failures arrive wrapped.
+      throw _mapStorageFailure(error.remoteCause, fallback: error);
     } on SqliteException catch (error) {
-      throw InventoryException(
+      throw _mapSqliteException(error);
+    } on CouldNotRollBackException catch (error) {
+      throw InventoryException(InventoryErrorCode.storageFailure, cause: error);
+    }
+  }
+
+  InventoryException _mapStorageFailure(
+    Object cause, {
+    required Object fallback,
+  }) {
+    if (cause is SqliteException) return _mapSqliteException(cause);
+    return InventoryException(
+      InventoryErrorCode.storageFailure,
+      cause: fallback,
+    );
+  }
+
+  InventoryException _mapSqliteException(SqliteException error) =>
+      InventoryException(
         error.resultCode == _sqliteConstraintResultCode
             ? InventoryErrorCode.constraintViolation
             : InventoryErrorCode.storageFailure,
         cause: error,
       );
-    } on CouldNotRollBackException catch (error) {
-      throw InventoryException(InventoryErrorCode.storageFailure, cause: error);
-    }
-  }
 
   // Validation helpers.
 
@@ -631,10 +939,11 @@ class InventoryEngine {
 
   /// Checks that [parentId] can receive a child of [inventoryId] and that its
   /// existing chain is sound. When moving, [movingNodeId] must not be found
-  /// among the parent and its ancestors.
+  /// among the parent and its ancestors. [childSpace] must match the parent.
   Future<void> _requireValidParent(
     String parentId,
     String inventoryId, {
+    required InventorySpace childSpace,
     String? movingNodeId,
   }) async {
     final parent = await _findNode(parentId);
@@ -649,6 +958,9 @@ class InventoryEngine {
     }
     if (!_nodeType(parent).canContain) {
       throw const InventoryException(InventoryErrorCode.parentCannotContain);
+    }
+    if (InventorySpace.parse(parent.space) != childSpace) {
+      throw const InventoryException(InventoryErrorCode.spaceMismatch);
     }
     await _validatedChain(parent, movingNodeId: movingNodeId);
   }
@@ -686,56 +998,10 @@ class InventoryEngine {
     }
   }
 
-  Future<Category> _requireCategory(
-    String categoryId,
-    String inventoryId,
-  ) async {
-    final category =
-        await (_db.select(_db.categories)..where(
-              (row) =>
-                  row.id.equals(categoryId) &
-                  row.inventoryId.equals(inventoryId),
-            ))
-            .getSingleOrNull();
-    if (category == null) {
-      throw const InventoryException(InventoryErrorCode.categoryNotFound);
-    }
-    return category;
-  }
-
-  Future<NodeCategory?> _findAssociation(String nodeId, String categoryId) =>
-      (_db.select(_db.nodeCategories)..where(
-            (row) =>
-                row.nodeId.equals(nodeId) & row.categoryId.equals(categoryId),
-          ))
-          .getSingleOrNull();
-
-  Future<void> _insertAssociation(
-    String inventoryId,
-    String nodeId,
-    String categoryId,
-  ) => _db
-      .into(_db.nodeCategories)
-      .insert(
-        NodeCategoriesCompanion.insert(
-          inventoryId: inventoryId,
-          nodeId: nodeId,
-          categoryId: categoryId,
-        ),
-      );
-
   Future<void> _writeNode(String nodeId, NodesCompanion changes) =>
       (_db.update(_db.nodes)..where((node) => node.id.equals(nodeId))).write(
         changes.copyWith(updatedAt: Value(_timestamp())),
       );
-
-  static String _normalizeName(String name) {
-    final normalized = name.trim();
-    if (normalized.isEmpty) {
-      throw const InventoryException(InventoryErrorCode.emptyName);
-    }
-    return normalized;
-  }
 
   static String? _normalizeOptional(String? value) {
     final normalized = value?.trim();
@@ -747,6 +1013,17 @@ class InventoryEngine {
       throw const InventoryException(InventoryErrorCode.invalidQuantity);
     }
   }
+
+  static StockLedgerEntry _toStockLedgerEntry(StockMovement row) =>
+      StockLedgerEntry(
+        id: row.id,
+        nodeId: row.nodeId,
+        type: StockMovementType.parse(row.movementType),
+        deltaQuarters: row.deltaQuarters,
+        balanceAfterQuarters: row.balanceAfterQuarters,
+        unit: row.unit,
+        createdAt: _parseDate(row.createdAt),
+      );
 
   static void _validateFinancialTotal(NodeValuation valuation, int quantity) {
     if (valuation is FinancialValuation) {
@@ -790,6 +1067,19 @@ class InventoryEngine {
     (node) => OrderingTerm.asc(node.id),
   ];
 
+  /// Tree siblings: all biens (simple + contenant), then locations, then name.
+  /// Keeps item containers with the goods group so a sibling location (e.g.
+  /// Garde-robe) cannot intercalate between a parent and its biens.
+  static List<OrderClauseGenerator<$NodesTable>> get _byTreeDisplay => [
+    (node) => OrderingTerm(
+      expression: CustomExpression<int>(
+        "CASE WHEN node_type = 'location' THEN 1 ELSE 0 END",
+      ),
+    ),
+    (node) => OrderingTerm.asc(node.name),
+    (node) => OrderingTerm.asc(node.id),
+  ];
+
   // Mapping from storage rows; unknown stored values are reported, never
   // silently replaced.
 
@@ -798,15 +1088,30 @@ class InventoryEngine {
 
   static InventoryNode _toNode(Node node) {
     final type = _nodeType(node);
+    final space = InventorySpace.parse(node.space);
+    final isStockProduct = space == InventorySpace.stock && type == NodeType.item;
+    final carriesQuantity =
+        ((space == InventorySpace.goods || space == InventorySpace.toBuy) &&
+            type.isItem) ||
+        isStockProduct;
     return InventoryNode(
       id: node.id,
       parentId: node.parentId,
+      space: space,
       name: node.name,
       type: type,
-      description: node.description,
       condition: node.condition,
-      quantity: type.isItem ? node.quantity : null,
-      valuation: type.isItem ? _toValuation(node) : null,
+      quantity: carriesQuantity ? node.quantity : null,
+      valuation: space == InventorySpace.goods && type.isItem
+          ? _valuationFromColumns(
+              node.valueMode,
+              node.financialValueCents,
+              node.sentimentalValue,
+            )
+          : null,
+      stockUnit: isStockProduct ? node.stockUnit : null,
+      unitCostCents: null,
+      stockReference: isStockProduct ? node.stockReference : null,
       status: _parse(
         NodeStatus.values,
         (status) => status.storageValue,
@@ -827,23 +1132,36 @@ class InventoryEngine {
     );
   }
 
-  static NodeValuation _toValuation(Node node) {
-    switch (node.valueMode) {
-      case 'financial' when node.financialValueCents != null:
-        return FinancialValuation(node.financialValueCents!);
-      case 'sentimental' when node.sentimentalValue != null:
-        return SentimentalValuation(node.sentimentalValue!);
+  static NodeValuation? _toValuation(Node node) => _valuationFromColumns(
+    node.valueMode,
+    node.financialValueCents,
+    node.sentimentalValue,
+  );
+
+  static NodeValuation? _valuationFromColumns(
+    String? valueMode,
+    int? financialCents,
+    int? sentimentalValue,
+  ) {
+    switch (valueMode) {
+      case 'financial' when financialCents != null:
+        return FinancialValuation(financialCents);
+      case 'sentimental' when sentimentalValue != null:
+        return SentimentalValuation(sentimentalValue);
+      case null:
+        return null;
       default:
         throw const InventoryException(InventoryErrorCode.invalidStoredData);
     }
   }
 
-  static InventoryCategory _toCategory(Category category) => InventoryCategory(
-    id: category.id,
-    name: category.name,
-    createdAt: _parseDate(category.createdAt),
-    updatedAt: _parseDate(category.updatedAt),
-  );
+  static int _addCents(int left, int right) {
+    const maxInt64 = 0x7FFFFFFFFFFFFFFF;
+    if (right > 0 && left > maxInt64 - right) {
+      throw const InventoryException(InventoryErrorCode.financialTotalOverflow);
+    }
+    return left + right;
+  }
 
   static T _parse<T>(
     List<T> values,

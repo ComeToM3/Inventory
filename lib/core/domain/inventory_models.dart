@@ -1,8 +1,26 @@
 import 'inventory_exception.dart';
+import 'stock_quantity.dart';
+
+/// Inventory navigation space (V2). V1 data maps to [goods].
+enum InventorySpace {
+  goods('goods'),
+  stock('stock'),
+  toBuy('to_buy');
+
+  const InventorySpace(this.storageValue);
+
+  final String storageValue;
+
+  static InventorySpace parse(String raw) {
+    for (final value in InventorySpace.values) {
+      if (value.storageValue == raw) return value;
+    }
+    throw const InventoryException(InventoryErrorCode.invalidStoredData);
+  }
+}
 
 enum NodeType {
   location('location', canContain: true, isItem: false),
-  container('container', canContain: true, isItem: false),
   item('item', canContain: false, isItem: true),
   itemContainer('item_container', canContain: true, isItem: true);
 
@@ -86,12 +104,15 @@ class InventoryNode {
   const InventoryNode({
     required this.id,
     required this.parentId,
+    required this.space,
     required this.name,
     required this.type,
-    required this.description,
     required this.condition,
     required this.quantity,
     required this.valuation,
+    this.stockUnit,
+    this.unitCostCents,
+    this.stockReference,
     required this.status,
     required this.withdrawalReason,
     required this.withdrawnAt,
@@ -101,16 +122,25 @@ class InventoryNode {
 
   final String id;
   final String? parentId;
+  final InventorySpace space;
   final String name;
   final NodeType type;
-  final String? description;
   final String? condition;
 
-  /// Present only for item types.
+  /// Goods items: piece count (≥ 1). Stock products: level storage (0/1/2/4).
   final int? quantity;
 
-  /// Present only for item types.
+  /// Goods valuation only; always null for Stock products.
   final NodeValuation? valuation;
+
+  /// Internal Stock sentinel / legacy unit label; not shown in M2.1-C UI.
+  final String? stockUnit;
+
+  /// Legacy optional unit cost; unused in M2.1-C UI.
+  final int? unitCostCents;
+
+  /// Optional conceptual total (e.g. 10); not shown in the tree.
+  final int? stockReference;
   final NodeStatus status;
   final WithdrawalReason? withdrawalReason;
   final DateTime? withdrawnAt;
@@ -119,9 +149,18 @@ class InventoryNode {
 
   bool get isActive => status == NodeStatus.active;
 
+  bool get isStockProduct =>
+      space == InventorySpace.stock && type == NodeType.item;
+
+  StockLevel? get stockLevel =>
+      isStockProduct && quantity != null
+          ? StockLevel.fromStoredQuarters(quantity!)
+          : null;
+
   /// Informative lot total (`quantity × unit amount`); null when the node is
-  /// not financially valued.
+  /// not financially valued as a Biens item.
   int? get financialTotalCents {
+    if (space != InventorySpace.goods) return null;
     final value = valuation;
     final count = quantity;
     if (value is! FinancialValuation || count == null) return null;
@@ -133,32 +172,27 @@ class InventoryNodeDetails {
   const InventoryNodeDetails({
     required this.node,
     required this.path,
-    required this.categories,
   });
 
   final InventoryNode node;
   final List<InventoryNode> path;
-  final List<InventoryCategory> categories;
 }
 
 class InventorySearchCriteria {
   const InventorySearchCriteria({
     this.name = '',
     this.type,
-    this.categoryId,
     this.branchId,
+    this.space = InventorySpace.goods,
   });
 
   final String name;
   final NodeType? type;
-  final String? categoryId;
   final String? branchId;
+  final InventorySpace space;
 
   bool get isEmpty =>
-      name.trim().isEmpty &&
-      type == null &&
-      categoryId == null &&
-      branchId == null;
+      name.trim().isEmpty && type == null && branchId == null;
 }
 
 class InventorySearchResult {
@@ -168,6 +202,7 @@ class InventorySearchResult {
     required this.type,
     required this.quantity,
     required this.path,
+    this.valuation,
   });
 
   final String nodeId;
@@ -175,6 +210,31 @@ class InventorySearchResult {
   final NodeType type;
   final int? quantity;
   final String path;
+
+  /// Present only for item types when a valuation is stored.
+  final NodeValuation? valuation;
+}
+
+/// Cumulative financial total for a node and its active descendants.
+sealed class SubtreeFinancialTotal {
+  const SubtreeFinancialTotal();
+}
+
+/// At least one active financial item contributes; [cents] may be 0.
+final class SubtreeFinancialAmount extends SubtreeFinancialTotal {
+  const SubtreeFinancialAmount(this.cents);
+
+  final int cents;
+}
+
+/// No active financial valuation in the subtree (empty or sentimental only).
+final class SubtreeFinancialNone extends SubtreeFinancialTotal {
+  const SubtreeFinancialNone();
+}
+
+/// Sum exceeded the signed 64-bit integer domain limit.
+final class SubtreeFinancialOverflow extends SubtreeFinancialTotal {
+  const SubtreeFinancialOverflow();
 }
 
 class InventorySearchResponse {
@@ -185,18 +245,4 @@ class InventorySearchResponse {
 
   final List<InventorySearchResult> results;
   final List<InventoryNode>? branchPath;
-}
-
-class InventoryCategory {
-  const InventoryCategory({
-    required this.id,
-    required this.name,
-    required this.createdAt,
-    required this.updatedAt,
-  });
-
-  final String id;
-  final String name;
-  final DateTime createdAt;
-  final DateTime updatedAt;
 }

@@ -81,6 +81,10 @@ Pour une même version, les noms de propriétés sont ceux du contrat et les cl�
 **Données métier :** inventaire, nœuds, catégories et associations.  
 Ne pas inclure d'identifiant d'appareil, de compte, de suivi, de fournisseur, de chemin privé ou d'identifiant de sauvegarde associé à l'utilisateur.
 
+### 4.4 État d'implémentation (DEV-12 / DEV-13)
+
+L'exporteur V1 produit exclusivement `format_version = 1` et `data_schema_version = 1` selon le contrat ci-dessus. Le codec Dart (`BackupCodec`) encode et vérifie l'encadrement, la longueur, le SHA-256 et la forme minimale du payload. DEV-13 consomme ce même contrat : validation métier, base temporaire, remplacement transactionnel avec journal interne `pending`/`committed`, reprise au démarrage, et exclusion Auto Backup (`allowBackup=false`, `fullBackupContent`, `dataExtractionRules`).
+
 ### 4.2 Limites et fichiers incomplets
 
 Recommandation V1 : refuser un fichier supérieur à **32 Mio** (en-tête inclus) et un en-tête supérieur à **4 Kio**. Le payload est non compressé ; il n'existe donc pas de risque d'expansion d'une archive. Le JSON est plat (tableaux de lignes, sans arbre JSON profond) ; imposer une profondeur de structure maximale de 8 et une limite de 100 000 nœuds. Ces limites doivent être vérifiées sur un appareil Android de capacité modeste et peuvent être abaissées si le budget mémoire de l'analyseur l'exige, mais ne doivent pas être dépassées silencieusement.

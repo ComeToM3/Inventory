@@ -2,10 +2,14 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../core/domain/inventory_exception.dart';
 import '../core/domain/inventory_models.dart';
 import 'app_strings.dart';
+import 'app_theme.dart';
+import 'inventory_messages.dart';
 import 'inventory_search_controller.dart';
 import 'inventory_tree_controller.dart';
+import 'inventory_ui.dart';
 
 class InventorySearchScreen extends StatefulWidget {
   const InventorySearchScreen({
@@ -46,7 +50,6 @@ class _InventorySearchScreenState extends State<InventorySearchScreen> {
   void _activate() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || !widget.active) return;
-      unawaited(_controller.loadCategories());
       unawaited(_controller.refresh());
     });
   }
@@ -65,10 +68,18 @@ class _InventorySearchScreenState extends State<InventorySearchScreen> {
     setState(() => _opening = true);
     try {
       await widget.onOpenNode(result.nodeId);
+    } on InventoryException catch (error) {
+      if (!mounted) return;
+      final message = switch (error.code) {
+        InventoryErrorCode.nodeInactive ||
+        InventoryErrorCode.nodeNotFound =>
+          AppStrings.nodeUnavailable,
+        _ => AppStrings.searchReadError,
+      };
+      showInventoryMessage(context, message);
     } finally {
       if (mounted) {
         setState(() => _opening = false);
-        unawaited(_controller.loadCategories());
         unawaited(_controller.refresh());
       }
     }
@@ -95,37 +106,19 @@ class _InventorySearchScreenState extends State<InventorySearchScreen> {
     return AnimatedBuilder(
       animation: _controller,
       builder: (context, _) {
-        final categoryCounts = <String, int>{};
-        for (final category in _controller.categories) {
-          categoryCounts[category.name] =
-              (categoryCounts[category.name] ?? 0) + 1;
-        }
-        String categoryLabel(InventoryCategory category) =>
-            categoryCounts[category.name]! > 1
-            ? AppStrings.categoryIdentity(category.name, category.id)
-            : category.name;
-
-        final categoryId = _controller.categoryId;
-        final selectedCategory = _controller.categories
-            .where((category) => category.id == categoryId)
-            .firstOrNull;
         final branchPath = _controller.branchPath;
         final branchLabel = branchPath == null
             ? AppStrings.allBranches
-            : branchPath.map((node) => node.name).join(' → ');
+            : branchPath
+                .map((node) => inventoryDisplayName(node.name))
+                .join(' → ');
         final summary = <String>[
           if (_controller.type case final type?)
             AppStrings.labelForNodeType(type),
-          if (categoryId != null)
-            selectedCategory == null
-                ? AppStrings.unavailableCategory
-                : categoryLabel(selectedCategory),
           if (branchPath != null) branchLabel,
         ];
         final hasFilters =
-            _controller.type != null ||
-            categoryId != null ||
-            branchPath != null;
+            _controller.type != null || branchPath != null;
         final showResults =
             !_controller.loading &&
             _controller.readError == null &&
@@ -147,7 +140,7 @@ class _InventorySearchScreenState extends State<InventorySearchScreen> {
                         child: TextField(
                           controller: _name,
                           decoration: InputDecoration(
-                            labelText: AppStrings.searchByName,
+                            hintText: AppStrings.searchByName,
                             prefixIcon: const Icon(Icons.search),
                             suffixIcon: _controller.name.isEmpty
                                 ? null
@@ -159,6 +152,25 @@ class _InventorySearchScreenState extends State<InventorySearchScreen> {
                                       _controller.setName('');
                                     },
                                   ),
+                            filled: true,
+                            fillColor: InventoryColors.card,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(24),
+                              borderSide: BorderSide.none,
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(24),
+                              borderSide: const BorderSide(
+                                color: InventoryColors.outline,
+                              ),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(24),
+                              borderSide: const BorderSide(
+                                color: InventoryColors.mintDeep,
+                                width: 1.5,
+                              ),
+                            ),
                           ),
                           textInputAction: TextInputAction.search,
                           onChanged: _controller.setName,
@@ -168,8 +180,43 @@ class _InventorySearchScreenState extends State<InventorySearchScreen> {
                           },
                         ),
                       ),
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        padding: const EdgeInsets.fromLTRB(16, 12, 24, 0),
+                        child: Row(
+                          children: [
+                            InventoryFilterChip(
+                              label: AppStrings.filterAll,
+                              selected: _controller.type == null,
+                              onSelected: (_) => _controller.setType(null),
+                            ),
+                            const SizedBox(width: 8),
+                            InventoryFilterChip(
+                              label: AppStrings.filterItems,
+                              selected: _controller.type == NodeType.item,
+                              onSelected: (_) =>
+                                  _controller.setType(NodeType.item),
+                            ),
+                            const SizedBox(width: 8),
+                            InventoryFilterChip(
+                              label: AppStrings.filterItemContainers,
+                              selected:
+                                  _controller.type == NodeType.itemContainer,
+                              onSelected: (_) =>
+                                  _controller.setType(NodeType.itemContainer),
+                            ),
+                            const SizedBox(width: 8),
+                            InventoryFilterChip(
+                              label: AppStrings.filterLocations,
+                              selected: _controller.type == NodeType.location,
+                              onSelected: (_) =>
+                                  _controller.setType(NodeType.location),
+                            ),
+                          ],
+                        ),
+                      ),
                       ExpansionTile(
-                        title: const Text(AppStrings.searchFilters),
+                        title: const Text(AppStrings.moreFilters),
                         subtitle: Text(
                           summary.isEmpty
                               ? AppStrings.searchNoFilters
@@ -207,57 +254,6 @@ class _InventorySearchScreenState extends State<InventorySearchScreen> {
                                   ],
                                   onChanged: _controller.setType,
                                 ),
-                                const SizedBox(height: 12),
-                                DropdownButtonFormField<String>(
-                                  key: ValueKey('category-$categoryId'),
-                                  initialValue: categoryId,
-                                  isExpanded: true,
-                                  decoration: const InputDecoration(
-                                    labelText: AppStrings.nodeCategories,
-                                  ),
-                                  items: [
-                                    const DropdownMenuItem<String>(
-                                      value: null,
-                                      child: Text(AppStrings.allCategories),
-                                    ),
-                                    for (final category
-                                        in _controller.categories)
-                                      DropdownMenuItem(
-                                        value: category.id,
-                                        child: Text(
-                                          categoryLabel(category),
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ),
-                                    if (categoryId != null &&
-                                        selectedCategory == null)
-                                      DropdownMenuItem(
-                                        value: categoryId,
-                                        child: const Text(
-                                          AppStrings.unavailableCategory,
-                                        ),
-                                      ),
-                                  ],
-                                  onChanged:
-                                      _controller.loadingCategories ||
-                                          _controller.categoriesError != null
-                                      ? null
-                                      : _controller.setCategory,
-                                ),
-                                if (_controller.loadingCategories)
-                                  const LinearProgressIndicator(
-                                    semanticsLabel:
-                                        AppStrings.categoriesLoading,
-                                  )
-                                else if (_controller.categoriesError
-                                    case final error?) ...[
-                                  Text(error),
-                                  TextButton(
-                                    onPressed: () =>
-                                        unawaited(_controller.loadCategories()),
-                                    child: const Text(AppStrings.retry),
-                                  ),
-                                ],
                                 ListTile(
                                   contentPadding: EdgeInsets.zero,
                                   title: const Text(
@@ -294,19 +290,43 @@ class _InventorySearchScreenState extends State<InventorySearchScreen> {
                         child: ListView.builder(
                           key: const PageStorageKey('search-results'),
                           controller: _scrollController,
-                          itemCount: _controller.results.length,
+                          padding: const EdgeInsets.only(top: 8, bottom: 24),
+                          itemCount: _controller.results.length + 1,
                           itemBuilder: (context, index) {
-                            final result = _controller.results[index];
-                            return ListTile(
-                              title: Text(result.name),
-                              subtitle: Text(
-                                AppStrings.searchResultDescription(
-                                  result.type,
-                                  result.quantity,
-                                  result.path,
+                            if (index == 0) {
+                              return Padding(
+                                padding: const EdgeInsets.fromLTRB(
+                                  20,
+                                  4,
+                                  20,
+                                  8,
                                 ),
-                              ),
-                              trailing: const Icon(Icons.chevron_right),
+                                child: Text(
+                                  AppStrings.searchResultCount(
+                                    _controller.results.length,
+                                  ),
+                                  style: const TextStyle(
+                                    color: InventoryColors.mutedText,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              );
+                            }
+                            final result = _controller.results[index - 1];
+                            final badge = inventorySearchValuationBadge(
+                              type: result.type,
+                              quantity: result.quantity,
+                              valuation: result.valuation,
+                            );
+                            final location = _ancestorPathLabel(
+                              result.path,
+                              result.name,
+                            );
+                            return InventoryResultCard(
+                              title: inventoryDisplayName(result.name),
+                              subtitle:
+                                  '${AppStrings.labelForNodeType(result.type)}\n$location',
+                              badge: badge.isEmpty ? null : badge,
                               onTap: () => unawaited(_openResult(result)),
                             );
                           },
@@ -359,6 +379,16 @@ class _InventorySearchScreenState extends State<InventorySearchScreen> {
           : AppStrings.searchEmpty,
       textAlign: TextAlign.center,
     );
+  }
+
+  /// Drop the leaf name from the engine path when the card title already shows it.
+  static String _ancestorPathLabel(String path, String name) {
+    final parts = path.split(' → ');
+    if (parts.isNotEmpty && parts.last == name) {
+      parts.removeLast();
+    }
+    if (parts.isEmpty) return AppStrings.inventoryRoot;
+    return parts.map(inventoryDisplayName).join(' → ');
   }
 }
 
@@ -414,7 +444,9 @@ class _SearchBranchPickerState extends State<_SearchBranchPicker> {
                       Text(
                         path.isEmpty
                             ? AppStrings.inventoryRoot
-                            : path.map((node) => node.name).join(' → '),
+                            : path
+                                .map((node) => inventoryDisplayName(node.name))
+                                .join(' → '),
                         style: Theme.of(context).textTheme.titleMedium,
                       ),
                       if (_controller.canGoUp)
@@ -444,7 +476,7 @@ class _SearchBranchPickerState extends State<_SearchBranchPicker> {
                         for (final node in _controller.children)
                           ListTile(
                             leading: const Icon(Icons.folder_outlined),
-                            title: Text(node.name),
+                            title: Text(inventoryDisplayName(node.name)),
                             subtitle: Text(
                               AppStrings.labelForNodeType(node.type),
                             ),

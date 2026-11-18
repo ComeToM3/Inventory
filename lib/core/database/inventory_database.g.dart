@@ -361,6 +361,16 @@ class $NodesTable extends Nodes with TableInfo<$NodesTable, Node> {
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _spaceMeta = const VerificationMeta('space');
+  @override
+  late final GeneratedColumn<String> space = GeneratedColumn<String>(
+    'space',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('goods'),
+  );
   static const VerificationMeta _nameMeta = const VerificationMeta('name');
   @override
   late final GeneratedColumn<String> name = GeneratedColumn<String>(
@@ -449,6 +459,39 @@ class $NodesTable extends Nodes with TableInfo<$NodesTable, Node> {
     type: DriftSqlType.int,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _stockUnitMeta = const VerificationMeta(
+    'stockUnit',
+  );
+  @override
+  late final GeneratedColumn<String> stockUnit = GeneratedColumn<String>(
+    'stock_unit',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _unitCostCentsMeta = const VerificationMeta(
+    'unitCostCents',
+  );
+  @override
+  late final GeneratedColumn<int> unitCostCents = GeneratedColumn<int>(
+    'unit_cost_cents',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _stockReferenceMeta = const VerificationMeta(
+    'stockReference',
+  );
+  @override
+  late final GeneratedColumn<int> stockReference = GeneratedColumn<int>(
+    'stock_reference',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _statusMeta = const VerificationMeta('status');
   @override
   late final GeneratedColumn<String> status = GeneratedColumn<String>(
@@ -508,6 +551,7 @@ class $NodesTable extends Nodes with TableInfo<$NodesTable, Node> {
     id,
     inventoryId,
     parentId,
+    space,
     name,
     nodeType,
     quantity,
@@ -516,6 +560,9 @@ class $NodesTable extends Nodes with TableInfo<$NodesTable, Node> {
     valueMode,
     financialValueCents,
     sentimentalValue,
+    stockUnit,
+    unitCostCents,
+    stockReference,
     status,
     withdrawalReason,
     withdrawnAt,
@@ -554,6 +601,12 @@ class $NodesTable extends Nodes with TableInfo<$NodesTable, Node> {
       context.handle(
         _parentIdMeta,
         parentId.isAcceptableOrUnknown(data['parent_id']!, _parentIdMeta),
+      );
+    }
+    if (data.containsKey('space')) {
+      context.handle(
+        _spaceMeta,
+        space.isAcceptableOrUnknown(data['space']!, _spaceMeta),
       );
     }
     if (data.containsKey('name')) {
@@ -614,6 +667,30 @@ class $NodesTable extends Nodes with TableInfo<$NodesTable, Node> {
         sentimentalValue.isAcceptableOrUnknown(
           data['sentimental_value']!,
           _sentimentalValueMeta,
+        ),
+      );
+    }
+    if (data.containsKey('stock_unit')) {
+      context.handle(
+        _stockUnitMeta,
+        stockUnit.isAcceptableOrUnknown(data['stock_unit']!, _stockUnitMeta),
+      );
+    }
+    if (data.containsKey('unit_cost_cents')) {
+      context.handle(
+        _unitCostCentsMeta,
+        unitCostCents.isAcceptableOrUnknown(
+          data['unit_cost_cents']!,
+          _unitCostCentsMeta,
+        ),
+      );
+    }
+    if (data.containsKey('stock_reference')) {
+      context.handle(
+        _stockReferenceMeta,
+        stockReference.isAcceptableOrUnknown(
+          data['stock_reference']!,
+          _stockReferenceMeta,
         ),
       );
     }
@@ -682,6 +759,10 @@ class $NodesTable extends Nodes with TableInfo<$NodesTable, Node> {
         DriftSqlType.string,
         data['${effectivePrefix}parent_id'],
       ),
+      space: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}space'],
+      )!,
       name: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}name'],
@@ -713,6 +794,18 @@ class $NodesTable extends Nodes with TableInfo<$NodesTable, Node> {
       sentimentalValue: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}sentimental_value'],
+      ),
+      stockUnit: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}stock_unit'],
+      ),
+      unitCostCents: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}unit_cost_cents'],
+      ),
+      stockReference: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}stock_reference'],
       ),
       status: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
@@ -747,14 +840,28 @@ class Node extends DataClass implements Insertable<Node> {
   final String id;
   final String inventoryId;
   final String? parentId;
+
+  /// Inventory space: goods (Biens), stock, or to_buy (À acheter).
+  final String space;
   final String name;
   final String nodeType;
+
+  /// Goods: piece count. Stock products: balance in quarters (D01).
   final int? quantity;
   final String? description;
   final String? condition;
   final String? valueMode;
   final int? financialValueCents;
   final int? sentimentalValue;
+
+  /// Internal Stock sentinel / legacy unit label; null outside stock products.
+  final String? stockUnit;
+
+  /// Legacy optional unit cost; unused by M2.1-C UI.
+  final int? unitCostCents;
+
+  /// Optional conceptual total for a Stock product (e.g. 10).
+  final int? stockReference;
   final String status;
   final String? withdrawalReason;
   final String? withdrawnAt;
@@ -764,6 +871,7 @@ class Node extends DataClass implements Insertable<Node> {
     required this.id,
     required this.inventoryId,
     this.parentId,
+    required this.space,
     required this.name,
     required this.nodeType,
     this.quantity,
@@ -772,6 +880,9 @@ class Node extends DataClass implements Insertable<Node> {
     this.valueMode,
     this.financialValueCents,
     this.sentimentalValue,
+    this.stockUnit,
+    this.unitCostCents,
+    this.stockReference,
     required this.status,
     this.withdrawalReason,
     this.withdrawnAt,
@@ -786,6 +897,7 @@ class Node extends DataClass implements Insertable<Node> {
     if (!nullToAbsent || parentId != null) {
       map['parent_id'] = Variable<String>(parentId);
     }
+    map['space'] = Variable<String>(space);
     map['name'] = Variable<String>(name);
     map['node_type'] = Variable<String>(nodeType);
     if (!nullToAbsent || quantity != null) {
@@ -806,6 +918,15 @@ class Node extends DataClass implements Insertable<Node> {
     if (!nullToAbsent || sentimentalValue != null) {
       map['sentimental_value'] = Variable<int>(sentimentalValue);
     }
+    if (!nullToAbsent || stockUnit != null) {
+      map['stock_unit'] = Variable<String>(stockUnit);
+    }
+    if (!nullToAbsent || unitCostCents != null) {
+      map['unit_cost_cents'] = Variable<int>(unitCostCents);
+    }
+    if (!nullToAbsent || stockReference != null) {
+      map['stock_reference'] = Variable<int>(stockReference);
+    }
     map['status'] = Variable<String>(status);
     if (!nullToAbsent || withdrawalReason != null) {
       map['withdrawal_reason'] = Variable<String>(withdrawalReason);
@@ -825,6 +946,7 @@ class Node extends DataClass implements Insertable<Node> {
       parentId: parentId == null && nullToAbsent
           ? const Value.absent()
           : Value(parentId),
+      space: Value(space),
       name: Value(name),
       nodeType: Value(nodeType),
       quantity: quantity == null && nullToAbsent
@@ -845,6 +967,15 @@ class Node extends DataClass implements Insertable<Node> {
       sentimentalValue: sentimentalValue == null && nullToAbsent
           ? const Value.absent()
           : Value(sentimentalValue),
+      stockUnit: stockUnit == null && nullToAbsent
+          ? const Value.absent()
+          : Value(stockUnit),
+      unitCostCents: unitCostCents == null && nullToAbsent
+          ? const Value.absent()
+          : Value(unitCostCents),
+      stockReference: stockReference == null && nullToAbsent
+          ? const Value.absent()
+          : Value(stockReference),
       status: Value(status),
       withdrawalReason: withdrawalReason == null && nullToAbsent
           ? const Value.absent()
@@ -866,6 +997,7 @@ class Node extends DataClass implements Insertable<Node> {
       id: serializer.fromJson<String>(json['id']),
       inventoryId: serializer.fromJson<String>(json['inventoryId']),
       parentId: serializer.fromJson<String?>(json['parentId']),
+      space: serializer.fromJson<String>(json['space']),
       name: serializer.fromJson<String>(json['name']),
       nodeType: serializer.fromJson<String>(json['nodeType']),
       quantity: serializer.fromJson<int?>(json['quantity']),
@@ -876,6 +1008,9 @@ class Node extends DataClass implements Insertable<Node> {
         json['financialValueCents'],
       ),
       sentimentalValue: serializer.fromJson<int?>(json['sentimentalValue']),
+      stockUnit: serializer.fromJson<String?>(json['stockUnit']),
+      unitCostCents: serializer.fromJson<int?>(json['unitCostCents']),
+      stockReference: serializer.fromJson<int?>(json['stockReference']),
       status: serializer.fromJson<String>(json['status']),
       withdrawalReason: serializer.fromJson<String?>(json['withdrawalReason']),
       withdrawnAt: serializer.fromJson<String?>(json['withdrawnAt']),
@@ -890,6 +1025,7 @@ class Node extends DataClass implements Insertable<Node> {
       'id': serializer.toJson<String>(id),
       'inventoryId': serializer.toJson<String>(inventoryId),
       'parentId': serializer.toJson<String?>(parentId),
+      'space': serializer.toJson<String>(space),
       'name': serializer.toJson<String>(name),
       'nodeType': serializer.toJson<String>(nodeType),
       'quantity': serializer.toJson<int?>(quantity),
@@ -898,6 +1034,9 @@ class Node extends DataClass implements Insertable<Node> {
       'valueMode': serializer.toJson<String?>(valueMode),
       'financialValueCents': serializer.toJson<int?>(financialValueCents),
       'sentimentalValue': serializer.toJson<int?>(sentimentalValue),
+      'stockUnit': serializer.toJson<String?>(stockUnit),
+      'unitCostCents': serializer.toJson<int?>(unitCostCents),
+      'stockReference': serializer.toJson<int?>(stockReference),
       'status': serializer.toJson<String>(status),
       'withdrawalReason': serializer.toJson<String?>(withdrawalReason),
       'withdrawnAt': serializer.toJson<String?>(withdrawnAt),
@@ -910,6 +1049,7 @@ class Node extends DataClass implements Insertable<Node> {
     String? id,
     String? inventoryId,
     Value<String?> parentId = const Value.absent(),
+    String? space,
     String? name,
     String? nodeType,
     Value<int?> quantity = const Value.absent(),
@@ -918,6 +1058,9 @@ class Node extends DataClass implements Insertable<Node> {
     Value<String?> valueMode = const Value.absent(),
     Value<int?> financialValueCents = const Value.absent(),
     Value<int?> sentimentalValue = const Value.absent(),
+    Value<String?> stockUnit = const Value.absent(),
+    Value<int?> unitCostCents = const Value.absent(),
+    Value<int?> stockReference = const Value.absent(),
     String? status,
     Value<String?> withdrawalReason = const Value.absent(),
     Value<String?> withdrawnAt = const Value.absent(),
@@ -927,6 +1070,7 @@ class Node extends DataClass implements Insertable<Node> {
     id: id ?? this.id,
     inventoryId: inventoryId ?? this.inventoryId,
     parentId: parentId.present ? parentId.value : this.parentId,
+    space: space ?? this.space,
     name: name ?? this.name,
     nodeType: nodeType ?? this.nodeType,
     quantity: quantity.present ? quantity.value : this.quantity,
@@ -939,6 +1083,13 @@ class Node extends DataClass implements Insertable<Node> {
     sentimentalValue: sentimentalValue.present
         ? sentimentalValue.value
         : this.sentimentalValue,
+    stockUnit: stockUnit.present ? stockUnit.value : this.stockUnit,
+    unitCostCents: unitCostCents.present
+        ? unitCostCents.value
+        : this.unitCostCents,
+    stockReference: stockReference.present
+        ? stockReference.value
+        : this.stockReference,
     status: status ?? this.status,
     withdrawalReason: withdrawalReason.present
         ? withdrawalReason.value
@@ -954,6 +1105,7 @@ class Node extends DataClass implements Insertable<Node> {
           ? data.inventoryId.value
           : this.inventoryId,
       parentId: data.parentId.present ? data.parentId.value : this.parentId,
+      space: data.space.present ? data.space.value : this.space,
       name: data.name.present ? data.name.value : this.name,
       nodeType: data.nodeType.present ? data.nodeType.value : this.nodeType,
       quantity: data.quantity.present ? data.quantity.value : this.quantity,
@@ -968,6 +1120,13 @@ class Node extends DataClass implements Insertable<Node> {
       sentimentalValue: data.sentimentalValue.present
           ? data.sentimentalValue.value
           : this.sentimentalValue,
+      stockUnit: data.stockUnit.present ? data.stockUnit.value : this.stockUnit,
+      unitCostCents: data.unitCostCents.present
+          ? data.unitCostCents.value
+          : this.unitCostCents,
+      stockReference: data.stockReference.present
+          ? data.stockReference.value
+          : this.stockReference,
       status: data.status.present ? data.status.value : this.status,
       withdrawalReason: data.withdrawalReason.present
           ? data.withdrawalReason.value
@@ -986,6 +1145,7 @@ class Node extends DataClass implements Insertable<Node> {
           ..write('id: $id, ')
           ..write('inventoryId: $inventoryId, ')
           ..write('parentId: $parentId, ')
+          ..write('space: $space, ')
           ..write('name: $name, ')
           ..write('nodeType: $nodeType, ')
           ..write('quantity: $quantity, ')
@@ -994,6 +1154,9 @@ class Node extends DataClass implements Insertable<Node> {
           ..write('valueMode: $valueMode, ')
           ..write('financialValueCents: $financialValueCents, ')
           ..write('sentimentalValue: $sentimentalValue, ')
+          ..write('stockUnit: $stockUnit, ')
+          ..write('unitCostCents: $unitCostCents, ')
+          ..write('stockReference: $stockReference, ')
           ..write('status: $status, ')
           ..write('withdrawalReason: $withdrawalReason, ')
           ..write('withdrawnAt: $withdrawnAt, ')
@@ -1008,6 +1171,7 @@ class Node extends DataClass implements Insertable<Node> {
     id,
     inventoryId,
     parentId,
+    space,
     name,
     nodeType,
     quantity,
@@ -1016,6 +1180,9 @@ class Node extends DataClass implements Insertable<Node> {
     valueMode,
     financialValueCents,
     sentimentalValue,
+    stockUnit,
+    unitCostCents,
+    stockReference,
     status,
     withdrawalReason,
     withdrawnAt,
@@ -1029,6 +1196,7 @@ class Node extends DataClass implements Insertable<Node> {
           other.id == this.id &&
           other.inventoryId == this.inventoryId &&
           other.parentId == this.parentId &&
+          other.space == this.space &&
           other.name == this.name &&
           other.nodeType == this.nodeType &&
           other.quantity == this.quantity &&
@@ -1037,6 +1205,9 @@ class Node extends DataClass implements Insertable<Node> {
           other.valueMode == this.valueMode &&
           other.financialValueCents == this.financialValueCents &&
           other.sentimentalValue == this.sentimentalValue &&
+          other.stockUnit == this.stockUnit &&
+          other.unitCostCents == this.unitCostCents &&
+          other.stockReference == this.stockReference &&
           other.status == this.status &&
           other.withdrawalReason == this.withdrawalReason &&
           other.withdrawnAt == this.withdrawnAt &&
@@ -1048,6 +1219,7 @@ class NodesCompanion extends UpdateCompanion<Node> {
   final Value<String> id;
   final Value<String> inventoryId;
   final Value<String?> parentId;
+  final Value<String> space;
   final Value<String> name;
   final Value<String> nodeType;
   final Value<int?> quantity;
@@ -1056,6 +1228,9 @@ class NodesCompanion extends UpdateCompanion<Node> {
   final Value<String?> valueMode;
   final Value<int?> financialValueCents;
   final Value<int?> sentimentalValue;
+  final Value<String?> stockUnit;
+  final Value<int?> unitCostCents;
+  final Value<int?> stockReference;
   final Value<String> status;
   final Value<String?> withdrawalReason;
   final Value<String?> withdrawnAt;
@@ -1066,6 +1241,7 @@ class NodesCompanion extends UpdateCompanion<Node> {
     this.id = const Value.absent(),
     this.inventoryId = const Value.absent(),
     this.parentId = const Value.absent(),
+    this.space = const Value.absent(),
     this.name = const Value.absent(),
     this.nodeType = const Value.absent(),
     this.quantity = const Value.absent(),
@@ -1074,6 +1250,9 @@ class NodesCompanion extends UpdateCompanion<Node> {
     this.valueMode = const Value.absent(),
     this.financialValueCents = const Value.absent(),
     this.sentimentalValue = const Value.absent(),
+    this.stockUnit = const Value.absent(),
+    this.unitCostCents = const Value.absent(),
+    this.stockReference = const Value.absent(),
     this.status = const Value.absent(),
     this.withdrawalReason = const Value.absent(),
     this.withdrawnAt = const Value.absent(),
@@ -1085,6 +1264,7 @@ class NodesCompanion extends UpdateCompanion<Node> {
     required String id,
     required String inventoryId,
     this.parentId = const Value.absent(),
+    this.space = const Value.absent(),
     required String name,
     required String nodeType,
     this.quantity = const Value.absent(),
@@ -1093,6 +1273,9 @@ class NodesCompanion extends UpdateCompanion<Node> {
     this.valueMode = const Value.absent(),
     this.financialValueCents = const Value.absent(),
     this.sentimentalValue = const Value.absent(),
+    this.stockUnit = const Value.absent(),
+    this.unitCostCents = const Value.absent(),
+    this.stockReference = const Value.absent(),
     this.status = const Value.absent(),
     this.withdrawalReason = const Value.absent(),
     this.withdrawnAt = const Value.absent(),
@@ -1109,6 +1292,7 @@ class NodesCompanion extends UpdateCompanion<Node> {
     Expression<String>? id,
     Expression<String>? inventoryId,
     Expression<String>? parentId,
+    Expression<String>? space,
     Expression<String>? name,
     Expression<String>? nodeType,
     Expression<int>? quantity,
@@ -1117,6 +1301,9 @@ class NodesCompanion extends UpdateCompanion<Node> {
     Expression<String>? valueMode,
     Expression<int>? financialValueCents,
     Expression<int>? sentimentalValue,
+    Expression<String>? stockUnit,
+    Expression<int>? unitCostCents,
+    Expression<int>? stockReference,
     Expression<String>? status,
     Expression<String>? withdrawalReason,
     Expression<String>? withdrawnAt,
@@ -1128,6 +1315,7 @@ class NodesCompanion extends UpdateCompanion<Node> {
       if (id != null) 'id': id,
       if (inventoryId != null) 'inventory_id': inventoryId,
       if (parentId != null) 'parent_id': parentId,
+      if (space != null) 'space': space,
       if (name != null) 'name': name,
       if (nodeType != null) 'node_type': nodeType,
       if (quantity != null) 'quantity': quantity,
@@ -1137,6 +1325,9 @@ class NodesCompanion extends UpdateCompanion<Node> {
       if (financialValueCents != null)
         'financial_value_cents': financialValueCents,
       if (sentimentalValue != null) 'sentimental_value': sentimentalValue,
+      if (stockUnit != null) 'stock_unit': stockUnit,
+      if (unitCostCents != null) 'unit_cost_cents': unitCostCents,
+      if (stockReference != null) 'stock_reference': stockReference,
       if (status != null) 'status': status,
       if (withdrawalReason != null) 'withdrawal_reason': withdrawalReason,
       if (withdrawnAt != null) 'withdrawn_at': withdrawnAt,
@@ -1150,6 +1341,7 @@ class NodesCompanion extends UpdateCompanion<Node> {
     Value<String>? id,
     Value<String>? inventoryId,
     Value<String?>? parentId,
+    Value<String>? space,
     Value<String>? name,
     Value<String>? nodeType,
     Value<int?>? quantity,
@@ -1158,6 +1350,9 @@ class NodesCompanion extends UpdateCompanion<Node> {
     Value<String?>? valueMode,
     Value<int?>? financialValueCents,
     Value<int?>? sentimentalValue,
+    Value<String?>? stockUnit,
+    Value<int?>? unitCostCents,
+    Value<int?>? stockReference,
     Value<String>? status,
     Value<String?>? withdrawalReason,
     Value<String?>? withdrawnAt,
@@ -1169,6 +1364,7 @@ class NodesCompanion extends UpdateCompanion<Node> {
       id: id ?? this.id,
       inventoryId: inventoryId ?? this.inventoryId,
       parentId: parentId ?? this.parentId,
+      space: space ?? this.space,
       name: name ?? this.name,
       nodeType: nodeType ?? this.nodeType,
       quantity: quantity ?? this.quantity,
@@ -1177,6 +1373,9 @@ class NodesCompanion extends UpdateCompanion<Node> {
       valueMode: valueMode ?? this.valueMode,
       financialValueCents: financialValueCents ?? this.financialValueCents,
       sentimentalValue: sentimentalValue ?? this.sentimentalValue,
+      stockUnit: stockUnit ?? this.stockUnit,
+      unitCostCents: unitCostCents ?? this.unitCostCents,
+      stockReference: stockReference ?? this.stockReference,
       status: status ?? this.status,
       withdrawalReason: withdrawalReason ?? this.withdrawalReason,
       withdrawnAt: withdrawnAt ?? this.withdrawnAt,
@@ -1197,6 +1396,9 @@ class NodesCompanion extends UpdateCompanion<Node> {
     }
     if (parentId.present) {
       map['parent_id'] = Variable<String>(parentId.value);
+    }
+    if (space.present) {
+      map['space'] = Variable<String>(space.value);
     }
     if (name.present) {
       map['name'] = Variable<String>(name.value);
@@ -1221,6 +1423,15 @@ class NodesCompanion extends UpdateCompanion<Node> {
     }
     if (sentimentalValue.present) {
       map['sentimental_value'] = Variable<int>(sentimentalValue.value);
+    }
+    if (stockUnit.present) {
+      map['stock_unit'] = Variable<String>(stockUnit.value);
+    }
+    if (unitCostCents.present) {
+      map['unit_cost_cents'] = Variable<int>(unitCostCents.value);
+    }
+    if (stockReference.present) {
+      map['stock_reference'] = Variable<int>(stockReference.value);
     }
     if (status.present) {
       map['status'] = Variable<String>(status.value);
@@ -1249,6 +1460,7 @@ class NodesCompanion extends UpdateCompanion<Node> {
           ..write('id: $id, ')
           ..write('inventoryId: $inventoryId, ')
           ..write('parentId: $parentId, ')
+          ..write('space: $space, ')
           ..write('name: $name, ')
           ..write('nodeType: $nodeType, ')
           ..write('quantity: $quantity, ')
@@ -1257,6 +1469,9 @@ class NodesCompanion extends UpdateCompanion<Node> {
           ..write('valueMode: $valueMode, ')
           ..write('financialValueCents: $financialValueCents, ')
           ..write('sentimentalValue: $sentimentalValue, ')
+          ..write('stockUnit: $stockUnit, ')
+          ..write('unitCostCents: $unitCostCents, ')
+          ..write('stockReference: $stockReference, ')
           ..write('status: $status, ')
           ..write('withdrawalReason: $withdrawalReason, ')
           ..write('withdrawnAt: $withdrawnAt, ')
@@ -2112,6 +2327,818 @@ class LocalVerificationEntriesCompanion
   }
 }
 
+class $RestorationJournalEntriesTable extends RestorationJournalEntries
+    with TableInfo<$RestorationJournalEntriesTable, RestorationJournalEntry> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $RestorationJournalEntriesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _operationIdMeta = const VerificationMeta(
+    'operationId',
+  );
+  @override
+  late final GeneratedColumn<String> operationId = GeneratedColumn<String>(
+    'operation_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumn<String> status = GeneratedColumn<String>(
+    'status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<String> createdAt = GeneratedColumn<String>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [operationId, status, createdAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'restoration_journal_entries';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<RestorationJournalEntry> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('operation_id')) {
+      context.handle(
+        _operationIdMeta,
+        operationId.isAcceptableOrUnknown(
+          data['operation_id']!,
+          _operationIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_operationIdMeta);
+    }
+    if (data.containsKey('status')) {
+      context.handle(
+        _statusMeta,
+        status.isAcceptableOrUnknown(data['status']!, _statusMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_statusMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {operationId};
+  @override
+  RestorationJournalEntry map(
+    Map<String, dynamic> data, {
+    String? tablePrefix,
+  }) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return RestorationJournalEntry(
+      operationId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}operation_id'],
+      )!,
+      status: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}status'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}created_at'],
+      )!,
+    );
+  }
+
+  @override
+  $RestorationJournalEntriesTable createAlias(String alias) {
+    return $RestorationJournalEntriesTable(attachedDatabase, alias);
+  }
+}
+
+class RestorationJournalEntry extends DataClass
+    implements Insertable<RestorationJournalEntry> {
+  final String operationId;
+  final String status;
+  final String createdAt;
+  const RestorationJournalEntry({
+    required this.operationId,
+    required this.status,
+    required this.createdAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['operation_id'] = Variable<String>(operationId);
+    map['status'] = Variable<String>(status);
+    map['created_at'] = Variable<String>(createdAt);
+    return map;
+  }
+
+  RestorationJournalEntriesCompanion toCompanion(bool nullToAbsent) {
+    return RestorationJournalEntriesCompanion(
+      operationId: Value(operationId),
+      status: Value(status),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory RestorationJournalEntry.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return RestorationJournalEntry(
+      operationId: serializer.fromJson<String>(json['operationId']),
+      status: serializer.fromJson<String>(json['status']),
+      createdAt: serializer.fromJson<String>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'operationId': serializer.toJson<String>(operationId),
+      'status': serializer.toJson<String>(status),
+      'createdAt': serializer.toJson<String>(createdAt),
+    };
+  }
+
+  RestorationJournalEntry copyWith({
+    String? operationId,
+    String? status,
+    String? createdAt,
+  }) => RestorationJournalEntry(
+    operationId: operationId ?? this.operationId,
+    status: status ?? this.status,
+    createdAt: createdAt ?? this.createdAt,
+  );
+  RestorationJournalEntry copyWithCompanion(
+    RestorationJournalEntriesCompanion data,
+  ) {
+    return RestorationJournalEntry(
+      operationId: data.operationId.present
+          ? data.operationId.value
+          : this.operationId,
+      status: data.status.present ? data.status.value : this.status,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('RestorationJournalEntry(')
+          ..write('operationId: $operationId, ')
+          ..write('status: $status, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(operationId, status, createdAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is RestorationJournalEntry &&
+          other.operationId == this.operationId &&
+          other.status == this.status &&
+          other.createdAt == this.createdAt);
+}
+
+class RestorationJournalEntriesCompanion
+    extends UpdateCompanion<RestorationJournalEntry> {
+  final Value<String> operationId;
+  final Value<String> status;
+  final Value<String> createdAt;
+  final Value<int> rowid;
+  const RestorationJournalEntriesCompanion({
+    this.operationId = const Value.absent(),
+    this.status = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  RestorationJournalEntriesCompanion.insert({
+    required String operationId,
+    required String status,
+    required String createdAt,
+    this.rowid = const Value.absent(),
+  }) : operationId = Value(operationId),
+       status = Value(status),
+       createdAt = Value(createdAt);
+  static Insertable<RestorationJournalEntry> custom({
+    Expression<String>? operationId,
+    Expression<String>? status,
+    Expression<String>? createdAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (operationId != null) 'operation_id': operationId,
+      if (status != null) 'status': status,
+      if (createdAt != null) 'created_at': createdAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  RestorationJournalEntriesCompanion copyWith({
+    Value<String>? operationId,
+    Value<String>? status,
+    Value<String>? createdAt,
+    Value<int>? rowid,
+  }) {
+    return RestorationJournalEntriesCompanion(
+      operationId: operationId ?? this.operationId,
+      status: status ?? this.status,
+      createdAt: createdAt ?? this.createdAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (operationId.present) {
+      map['operation_id'] = Variable<String>(operationId.value);
+    }
+    if (status.present) {
+      map['status'] = Variable<String>(status.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<String>(createdAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('RestorationJournalEntriesCompanion(')
+          ..write('operationId: $operationId, ')
+          ..write('status: $status, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $StockMovementsTable extends StockMovements
+    with TableInfo<$StockMovementsTable, StockMovement> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $StockMovementsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _inventoryIdMeta = const VerificationMeta(
+    'inventoryId',
+  );
+  @override
+  late final GeneratedColumn<String> inventoryId = GeneratedColumn<String>(
+    'inventory_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES inventories (id) ON DELETE RESTRICT',
+    ),
+  );
+  static const VerificationMeta _nodeIdMeta = const VerificationMeta('nodeId');
+  @override
+  late final GeneratedColumn<String> nodeId = GeneratedColumn<String>(
+    'node_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _movementTypeMeta = const VerificationMeta(
+    'movementType',
+  );
+  @override
+  late final GeneratedColumn<String> movementType = GeneratedColumn<String>(
+    'movement_type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _deltaQuartersMeta = const VerificationMeta(
+    'deltaQuarters',
+  );
+  @override
+  late final GeneratedColumn<int> deltaQuarters = GeneratedColumn<int>(
+    'delta_quarters',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _balanceAfterQuartersMeta =
+      const VerificationMeta('balanceAfterQuarters');
+  @override
+  late final GeneratedColumn<int> balanceAfterQuarters = GeneratedColumn<int>(
+    'balance_after_quarters',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _unitMeta = const VerificationMeta('unit');
+  @override
+  late final GeneratedColumn<String> unit = GeneratedColumn<String>(
+    'unit',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<String> createdAt = GeneratedColumn<String>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    inventoryId,
+    nodeId,
+    movementType,
+    deltaQuarters,
+    balanceAfterQuarters,
+    unit,
+    createdAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'stock_movements';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<StockMovement> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('inventory_id')) {
+      context.handle(
+        _inventoryIdMeta,
+        inventoryId.isAcceptableOrUnknown(
+          data['inventory_id']!,
+          _inventoryIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_inventoryIdMeta);
+    }
+    if (data.containsKey('node_id')) {
+      context.handle(
+        _nodeIdMeta,
+        nodeId.isAcceptableOrUnknown(data['node_id']!, _nodeIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nodeIdMeta);
+    }
+    if (data.containsKey('movement_type')) {
+      context.handle(
+        _movementTypeMeta,
+        movementType.isAcceptableOrUnknown(
+          data['movement_type']!,
+          _movementTypeMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_movementTypeMeta);
+    }
+    if (data.containsKey('delta_quarters')) {
+      context.handle(
+        _deltaQuartersMeta,
+        deltaQuarters.isAcceptableOrUnknown(
+          data['delta_quarters']!,
+          _deltaQuartersMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_deltaQuartersMeta);
+    }
+    if (data.containsKey('balance_after_quarters')) {
+      context.handle(
+        _balanceAfterQuartersMeta,
+        balanceAfterQuarters.isAcceptableOrUnknown(
+          data['balance_after_quarters']!,
+          _balanceAfterQuartersMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_balanceAfterQuartersMeta);
+    }
+    if (data.containsKey('unit')) {
+      context.handle(
+        _unitMeta,
+        unit.isAcceptableOrUnknown(data['unit']!, _unitMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_unitMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  StockMovement map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return StockMovement(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      inventoryId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}inventory_id'],
+      )!,
+      nodeId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}node_id'],
+      )!,
+      movementType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}movement_type'],
+      )!,
+      deltaQuarters: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}delta_quarters'],
+      )!,
+      balanceAfterQuarters: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}balance_after_quarters'],
+      )!,
+      unit: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}unit'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}created_at'],
+      )!,
+    );
+  }
+
+  @override
+  $StockMovementsTable createAlias(String alias) {
+    return $StockMovementsTable(attachedDatabase, alias);
+  }
+}
+
+class StockMovement extends DataClass implements Insertable<StockMovement> {
+  final String id;
+  final String inventoryId;
+  final String nodeId;
+  final String movementType;
+  final int deltaQuarters;
+  final int balanceAfterQuarters;
+  final String unit;
+  final String createdAt;
+  const StockMovement({
+    required this.id,
+    required this.inventoryId,
+    required this.nodeId,
+    required this.movementType,
+    required this.deltaQuarters,
+    required this.balanceAfterQuarters,
+    required this.unit,
+    required this.createdAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['inventory_id'] = Variable<String>(inventoryId);
+    map['node_id'] = Variable<String>(nodeId);
+    map['movement_type'] = Variable<String>(movementType);
+    map['delta_quarters'] = Variable<int>(deltaQuarters);
+    map['balance_after_quarters'] = Variable<int>(balanceAfterQuarters);
+    map['unit'] = Variable<String>(unit);
+    map['created_at'] = Variable<String>(createdAt);
+    return map;
+  }
+
+  StockMovementsCompanion toCompanion(bool nullToAbsent) {
+    return StockMovementsCompanion(
+      id: Value(id),
+      inventoryId: Value(inventoryId),
+      nodeId: Value(nodeId),
+      movementType: Value(movementType),
+      deltaQuarters: Value(deltaQuarters),
+      balanceAfterQuarters: Value(balanceAfterQuarters),
+      unit: Value(unit),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory StockMovement.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return StockMovement(
+      id: serializer.fromJson<String>(json['id']),
+      inventoryId: serializer.fromJson<String>(json['inventoryId']),
+      nodeId: serializer.fromJson<String>(json['nodeId']),
+      movementType: serializer.fromJson<String>(json['movementType']),
+      deltaQuarters: serializer.fromJson<int>(json['deltaQuarters']),
+      balanceAfterQuarters: serializer.fromJson<int>(
+        json['balanceAfterQuarters'],
+      ),
+      unit: serializer.fromJson<String>(json['unit']),
+      createdAt: serializer.fromJson<String>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'inventoryId': serializer.toJson<String>(inventoryId),
+      'nodeId': serializer.toJson<String>(nodeId),
+      'movementType': serializer.toJson<String>(movementType),
+      'deltaQuarters': serializer.toJson<int>(deltaQuarters),
+      'balanceAfterQuarters': serializer.toJson<int>(balanceAfterQuarters),
+      'unit': serializer.toJson<String>(unit),
+      'createdAt': serializer.toJson<String>(createdAt),
+    };
+  }
+
+  StockMovement copyWith({
+    String? id,
+    String? inventoryId,
+    String? nodeId,
+    String? movementType,
+    int? deltaQuarters,
+    int? balanceAfterQuarters,
+    String? unit,
+    String? createdAt,
+  }) => StockMovement(
+    id: id ?? this.id,
+    inventoryId: inventoryId ?? this.inventoryId,
+    nodeId: nodeId ?? this.nodeId,
+    movementType: movementType ?? this.movementType,
+    deltaQuarters: deltaQuarters ?? this.deltaQuarters,
+    balanceAfterQuarters: balanceAfterQuarters ?? this.balanceAfterQuarters,
+    unit: unit ?? this.unit,
+    createdAt: createdAt ?? this.createdAt,
+  );
+  StockMovement copyWithCompanion(StockMovementsCompanion data) {
+    return StockMovement(
+      id: data.id.present ? data.id.value : this.id,
+      inventoryId: data.inventoryId.present
+          ? data.inventoryId.value
+          : this.inventoryId,
+      nodeId: data.nodeId.present ? data.nodeId.value : this.nodeId,
+      movementType: data.movementType.present
+          ? data.movementType.value
+          : this.movementType,
+      deltaQuarters: data.deltaQuarters.present
+          ? data.deltaQuarters.value
+          : this.deltaQuarters,
+      balanceAfterQuarters: data.balanceAfterQuarters.present
+          ? data.balanceAfterQuarters.value
+          : this.balanceAfterQuarters,
+      unit: data.unit.present ? data.unit.value : this.unit,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('StockMovement(')
+          ..write('id: $id, ')
+          ..write('inventoryId: $inventoryId, ')
+          ..write('nodeId: $nodeId, ')
+          ..write('movementType: $movementType, ')
+          ..write('deltaQuarters: $deltaQuarters, ')
+          ..write('balanceAfterQuarters: $balanceAfterQuarters, ')
+          ..write('unit: $unit, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    inventoryId,
+    nodeId,
+    movementType,
+    deltaQuarters,
+    balanceAfterQuarters,
+    unit,
+    createdAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is StockMovement &&
+          other.id == this.id &&
+          other.inventoryId == this.inventoryId &&
+          other.nodeId == this.nodeId &&
+          other.movementType == this.movementType &&
+          other.deltaQuarters == this.deltaQuarters &&
+          other.balanceAfterQuarters == this.balanceAfterQuarters &&
+          other.unit == this.unit &&
+          other.createdAt == this.createdAt);
+}
+
+class StockMovementsCompanion extends UpdateCompanion<StockMovement> {
+  final Value<String> id;
+  final Value<String> inventoryId;
+  final Value<String> nodeId;
+  final Value<String> movementType;
+  final Value<int> deltaQuarters;
+  final Value<int> balanceAfterQuarters;
+  final Value<String> unit;
+  final Value<String> createdAt;
+  final Value<int> rowid;
+  const StockMovementsCompanion({
+    this.id = const Value.absent(),
+    this.inventoryId = const Value.absent(),
+    this.nodeId = const Value.absent(),
+    this.movementType = const Value.absent(),
+    this.deltaQuarters = const Value.absent(),
+    this.balanceAfterQuarters = const Value.absent(),
+    this.unit = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  StockMovementsCompanion.insert({
+    required String id,
+    required String inventoryId,
+    required String nodeId,
+    required String movementType,
+    required int deltaQuarters,
+    required int balanceAfterQuarters,
+    required String unit,
+    required String createdAt,
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       inventoryId = Value(inventoryId),
+       nodeId = Value(nodeId),
+       movementType = Value(movementType),
+       deltaQuarters = Value(deltaQuarters),
+       balanceAfterQuarters = Value(balanceAfterQuarters),
+       unit = Value(unit),
+       createdAt = Value(createdAt);
+  static Insertable<StockMovement> custom({
+    Expression<String>? id,
+    Expression<String>? inventoryId,
+    Expression<String>? nodeId,
+    Expression<String>? movementType,
+    Expression<int>? deltaQuarters,
+    Expression<int>? balanceAfterQuarters,
+    Expression<String>? unit,
+    Expression<String>? createdAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (inventoryId != null) 'inventory_id': inventoryId,
+      if (nodeId != null) 'node_id': nodeId,
+      if (movementType != null) 'movement_type': movementType,
+      if (deltaQuarters != null) 'delta_quarters': deltaQuarters,
+      if (balanceAfterQuarters != null)
+        'balance_after_quarters': balanceAfterQuarters,
+      if (unit != null) 'unit': unit,
+      if (createdAt != null) 'created_at': createdAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  StockMovementsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? inventoryId,
+    Value<String>? nodeId,
+    Value<String>? movementType,
+    Value<int>? deltaQuarters,
+    Value<int>? balanceAfterQuarters,
+    Value<String>? unit,
+    Value<String>? createdAt,
+    Value<int>? rowid,
+  }) {
+    return StockMovementsCompanion(
+      id: id ?? this.id,
+      inventoryId: inventoryId ?? this.inventoryId,
+      nodeId: nodeId ?? this.nodeId,
+      movementType: movementType ?? this.movementType,
+      deltaQuarters: deltaQuarters ?? this.deltaQuarters,
+      balanceAfterQuarters: balanceAfterQuarters ?? this.balanceAfterQuarters,
+      unit: unit ?? this.unit,
+      createdAt: createdAt ?? this.createdAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (inventoryId.present) {
+      map['inventory_id'] = Variable<String>(inventoryId.value);
+    }
+    if (nodeId.present) {
+      map['node_id'] = Variable<String>(nodeId.value);
+    }
+    if (movementType.present) {
+      map['movement_type'] = Variable<String>(movementType.value);
+    }
+    if (deltaQuarters.present) {
+      map['delta_quarters'] = Variable<int>(deltaQuarters.value);
+    }
+    if (balanceAfterQuarters.present) {
+      map['balance_after_quarters'] = Variable<int>(balanceAfterQuarters.value);
+    }
+    if (unit.present) {
+      map['unit'] = Variable<String>(unit.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<String>(createdAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('StockMovementsCompanion(')
+          ..write('id: $id, ')
+          ..write('inventoryId: $inventoryId, ')
+          ..write('nodeId: $nodeId, ')
+          ..write('movementType: $movementType, ')
+          ..write('deltaQuarters: $deltaQuarters, ')
+          ..write('balanceAfterQuarters: $balanceAfterQuarters, ')
+          ..write('unit: $unit, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$InventoryDatabase extends GeneratedDatabase {
   _$InventoryDatabase(QueryExecutor e) : super(e);
   $InventoryDatabaseManager get managers => $InventoryDatabaseManager(this);
@@ -2121,6 +3148,9 @@ abstract class _$InventoryDatabase extends GeneratedDatabase {
   late final $NodeCategoriesTable nodeCategories = $NodeCategoriesTable(this);
   late final $LocalVerificationEntriesTable localVerificationEntries =
       $LocalVerificationEntriesTable(this);
+  late final $RestorationJournalEntriesTable restorationJournalEntries =
+      $RestorationJournalEntriesTable(this);
+  late final $StockMovementsTable stockMovements = $StockMovementsTable(this);
   late final Index nodesParentIdx = Index(
     'nodes_parent_idx',
     'CREATE INDEX nodes_parent_idx ON nodes (inventory_id, parent_id)',
@@ -2133,6 +3163,10 @@ abstract class _$InventoryDatabase extends GeneratedDatabase {
     'node_categories_category_idx',
     'CREATE INDEX node_categories_category_idx ON node_categories (inventory_id, category_id)',
   );
+  late final Index stockMovementsNodeIdx = Index(
+    'stock_movements_node_idx',
+    'CREATE INDEX stock_movements_node_idx ON stock_movements (inventory_id, node_id, created_at)',
+  );
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -2143,9 +3177,12 @@ abstract class _$InventoryDatabase extends GeneratedDatabase {
     categories,
     nodeCategories,
     localVerificationEntries,
+    restorationJournalEntries,
+    stockMovements,
     nodesParentIdx,
     nodesActiveNameIdx,
     nodeCategoriesCategoryIdx,
+    stockMovementsNodeIdx,
   ];
 }
 
@@ -2202,6 +3239,25 @@ final class $$InventoriesTableReferences
     ).filter((f) => f.inventoryId.id.sqlEquals($_itemColumn<String>('id')!));
 
     final cache = $_typedResult.readTableOrNull(_categoriesRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$StockMovementsTable, List<StockMovement>>
+  _stockMovementsRefsTable(_$InventoryDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.stockMovements,
+        aliasName: 'inventories__id__stock_movements__inventory_id',
+      );
+
+  $$StockMovementsTableProcessedTableManager get stockMovementsRefs {
+    final manager = $$StockMovementsTableTableManager(
+      $_db,
+      $_db.stockMovements,
+    ).filter((f) => f.inventoryId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_stockMovementsRefsTable($_db));
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: cache),
     );
@@ -2278,6 +3334,31 @@ class $$InventoriesTableFilterComposer
           }) => $$CategoriesTableFilterComposer(
             $db: $db,
             $table: $db.categories,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> stockMovementsRefs(
+    Expression<bool> Function($$StockMovementsTableFilterComposer f) f,
+  ) {
+    final $$StockMovementsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.stockMovements,
+      getReferencedColumn: (t) => t.inventoryId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$StockMovementsTableFilterComposer(
+            $db: $db,
+            $table: $db.stockMovements,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -2390,6 +3471,31 @@ class $$InventoriesTableAnnotationComposer
     );
     return f(composer);
   }
+
+  Expression<T> stockMovementsRefs<T extends Object>(
+    Expression<T> Function($$StockMovementsTableAnnotationComposer a) f,
+  ) {
+    final $$StockMovementsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.stockMovements,
+      getReferencedColumn: (t) => t.inventoryId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$StockMovementsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.stockMovements,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$InventoriesTableTableManager
@@ -2405,7 +3511,11 @@ class $$InventoriesTableTableManager
           $$InventoriesTableUpdateCompanionBuilder,
           (Inventory, $$InventoriesTableReferences),
           Inventory,
-          PrefetchHooks Function({bool nodesRefs, bool categoriesRefs})
+          PrefetchHooks Function({
+            bool nodesRefs,
+            bool categoriesRefs,
+            bool stockMovementsRefs,
+          })
         > {
   $$InventoriesTableTableManager(
     _$InventoryDatabase db,
@@ -2456,56 +3566,86 @@ class $$InventoriesTableTableManager
                 ),
               )
               .toList(),
-          prefetchHooksCallback: ({nodesRefs = false, categoriesRefs = false}) {
-            return PrefetchHooks(
-              db: db,
-              explicitlyWatchedTables: [
-                if (nodesRefs) db.nodes,
-                if (categoriesRefs) db.categories,
-              ],
-              addJoins: null,
-              getPrefetchedDataCallback: (items) async {
-                return [
-                  if (nodesRefs)
-                    await $_getPrefetchedDataByColumns<
-                      Inventory,
-                      $InventoriesTable,
-                      Node,
-                      $NodesTable
-                    >(
-                      currentTable: table,
-                      referencedTable: $$InventoriesTableReferences
-                          ._nodesRefsTable(db),
-                      managerFromTypedResult: (p0) =>
-                          $$InventoriesTableReferences(db, table, p0).nodesRefs,
-                      currentColumn: 'id',
-                      referencedColumn: 'inventory_id',
-                      typedResults: items,
-                    ),
-                  if (categoriesRefs)
-                    await $_getPrefetchedDataByColumns<
-                      Inventory,
-                      $InventoriesTable,
-                      Category,
-                      $CategoriesTable
-                    >(
-                      currentTable: table,
-                      referencedTable: $$InventoriesTableReferences
-                          ._categoriesRefsTable(db),
-                      managerFromTypedResult: (p0) =>
-                          $$InventoriesTableReferences(
-                            db,
-                            table,
-                            p0,
-                          ).categoriesRefs,
-                      currentColumn: 'id',
-                      referencedColumn: 'inventory_id',
-                      typedResults: items,
-                    ),
-                ];
+          prefetchHooksCallback:
+              ({
+                nodesRefs = false,
+                categoriesRefs = false,
+                stockMovementsRefs = false,
+              }) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [
+                    if (nodesRefs) db.nodes,
+                    if (categoriesRefs) db.categories,
+                    if (stockMovementsRefs) db.stockMovements,
+                  ],
+                  addJoins: null,
+                  getPrefetchedDataCallback: (items) async {
+                    return [
+                      if (nodesRefs)
+                        await $_getPrefetchedDataByColumns<
+                          Inventory,
+                          $InventoriesTable,
+                          Node,
+                          $NodesTable
+                        >(
+                          currentTable: table,
+                          referencedTable: $$InventoriesTableReferences
+                              ._nodesRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$InventoriesTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).nodesRefs,
+                          currentColumn: 'id',
+                          referencedColumn: 'inventory_id',
+                          typedResults: items,
+                        ),
+                      if (categoriesRefs)
+                        await $_getPrefetchedDataByColumns<
+                          Inventory,
+                          $InventoriesTable,
+                          Category,
+                          $CategoriesTable
+                        >(
+                          currentTable: table,
+                          referencedTable: $$InventoriesTableReferences
+                              ._categoriesRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$InventoriesTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).categoriesRefs,
+                          currentColumn: 'id',
+                          referencedColumn: 'inventory_id',
+                          typedResults: items,
+                        ),
+                      if (stockMovementsRefs)
+                        await $_getPrefetchedDataByColumns<
+                          Inventory,
+                          $InventoriesTable,
+                          StockMovement,
+                          $StockMovementsTable
+                        >(
+                          currentTable: table,
+                          referencedTable: $$InventoriesTableReferences
+                              ._stockMovementsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$InventoriesTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).stockMovementsRefs,
+                          currentColumn: 'id',
+                          referencedColumn: 'inventory_id',
+                          typedResults: items,
+                        ),
+                    ];
+                  },
+                );
               },
-            );
-          },
         ),
       );
 }
@@ -2522,13 +3662,18 @@ typedef $$InventoriesTableProcessedTableManager =
       $$InventoriesTableUpdateCompanionBuilder,
       (Inventory, $$InventoriesTableReferences),
       Inventory,
-      PrefetchHooks Function({bool nodesRefs, bool categoriesRefs})
+      PrefetchHooks Function({
+        bool nodesRefs,
+        bool categoriesRefs,
+        bool stockMovementsRefs,
+      })
     >;
 typedef $$NodesTableCreateCompanionBuilder =
     NodesCompanion Function({
       required String id,
       required String inventoryId,
       Value<String?> parentId,
+      Value<String> space,
       required String name,
       required String nodeType,
       Value<int?> quantity,
@@ -2537,6 +3682,9 @@ typedef $$NodesTableCreateCompanionBuilder =
       Value<String?> valueMode,
       Value<int?> financialValueCents,
       Value<int?> sentimentalValue,
+      Value<String?> stockUnit,
+      Value<int?> unitCostCents,
+      Value<int?> stockReference,
       Value<String> status,
       Value<String?> withdrawalReason,
       Value<String?> withdrawnAt,
@@ -2549,6 +3697,7 @@ typedef $$NodesTableUpdateCompanionBuilder =
       Value<String> id,
       Value<String> inventoryId,
       Value<String?> parentId,
+      Value<String> space,
       Value<String> name,
       Value<String> nodeType,
       Value<int?> quantity,
@@ -2557,6 +3706,9 @@ typedef $$NodesTableUpdateCompanionBuilder =
       Value<String?> valueMode,
       Value<int?> financialValueCents,
       Value<int?> sentimentalValue,
+      Value<String?> stockUnit,
+      Value<int?> unitCostCents,
+      Value<int?> stockReference,
       Value<String> status,
       Value<String?> withdrawalReason,
       Value<String?> withdrawnAt,
@@ -2606,6 +3758,11 @@ class $$NodesTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<String> get space => $composableBuilder(
+    column: $table.space,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<String> get name => $composableBuilder(
     column: $table.name,
     builder: (column) => ColumnFilters(column),
@@ -2643,6 +3800,21 @@ class $$NodesTableFilterComposer
 
   ColumnFilters<int> get sentimentalValue => $composableBuilder(
     column: $table.sentimentalValue,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get stockUnit => $composableBuilder(
+    column: $table.stockUnit,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get unitCostCents => $composableBuilder(
+    column: $table.unitCostCents,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get stockReference => $composableBuilder(
+    column: $table.stockReference,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -2714,6 +3886,11 @@ class $$NodesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get space => $composableBuilder(
+    column: $table.space,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get name => $composableBuilder(
     column: $table.name,
     builder: (column) => ColumnOrderings(column),
@@ -2751,6 +3928,21 @@ class $$NodesTableOrderingComposer
 
   ColumnOrderings<int> get sentimentalValue => $composableBuilder(
     column: $table.sentimentalValue,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get stockUnit => $composableBuilder(
+    column: $table.stockUnit,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get unitCostCents => $composableBuilder(
+    column: $table.unitCostCents,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get stockReference => $composableBuilder(
+    column: $table.stockReference,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -2818,6 +4010,9 @@ class $$NodesTableAnnotationComposer
   GeneratedColumn<String> get parentId =>
       $composableBuilder(column: $table.parentId, builder: (column) => column);
 
+  GeneratedColumn<String> get space =>
+      $composableBuilder(column: $table.space, builder: (column) => column);
+
   GeneratedColumn<String> get name =>
       $composableBuilder(column: $table.name, builder: (column) => column);
 
@@ -2845,6 +4040,19 @@ class $$NodesTableAnnotationComposer
 
   GeneratedColumn<int> get sentimentalValue => $composableBuilder(
     column: $table.sentimentalValue,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get stockUnit =>
+      $composableBuilder(column: $table.stockUnit, builder: (column) => column);
+
+  GeneratedColumn<int> get unitCostCents => $composableBuilder(
+    column: $table.unitCostCents,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get stockReference => $composableBuilder(
+    column: $table.stockReference,
     builder: (column) => column,
   );
 
@@ -2922,6 +4130,7 @@ class $$NodesTableTableManager
                 Value<String> id = const Value.absent(),
                 Value<String> inventoryId = const Value.absent(),
                 Value<String?> parentId = const Value.absent(),
+                Value<String> space = const Value.absent(),
                 Value<String> name = const Value.absent(),
                 Value<String> nodeType = const Value.absent(),
                 Value<int?> quantity = const Value.absent(),
@@ -2930,6 +4139,9 @@ class $$NodesTableTableManager
                 Value<String?> valueMode = const Value.absent(),
                 Value<int?> financialValueCents = const Value.absent(),
                 Value<int?> sentimentalValue = const Value.absent(),
+                Value<String?> stockUnit = const Value.absent(),
+                Value<int?> unitCostCents = const Value.absent(),
+                Value<int?> stockReference = const Value.absent(),
                 Value<String> status = const Value.absent(),
                 Value<String?> withdrawalReason = const Value.absent(),
                 Value<String?> withdrawnAt = const Value.absent(),
@@ -2940,6 +4152,7 @@ class $$NodesTableTableManager
                 id: id,
                 inventoryId: inventoryId,
                 parentId: parentId,
+                space: space,
                 name: name,
                 nodeType: nodeType,
                 quantity: quantity,
@@ -2948,6 +4161,9 @@ class $$NodesTableTableManager
                 valueMode: valueMode,
                 financialValueCents: financialValueCents,
                 sentimentalValue: sentimentalValue,
+                stockUnit: stockUnit,
+                unitCostCents: unitCostCents,
+                stockReference: stockReference,
                 status: status,
                 withdrawalReason: withdrawalReason,
                 withdrawnAt: withdrawnAt,
@@ -2960,6 +4176,7 @@ class $$NodesTableTableManager
                 required String id,
                 required String inventoryId,
                 Value<String?> parentId = const Value.absent(),
+                Value<String> space = const Value.absent(),
                 required String name,
                 required String nodeType,
                 Value<int?> quantity = const Value.absent(),
@@ -2968,6 +4185,9 @@ class $$NodesTableTableManager
                 Value<String?> valueMode = const Value.absent(),
                 Value<int?> financialValueCents = const Value.absent(),
                 Value<int?> sentimentalValue = const Value.absent(),
+                Value<String?> stockUnit = const Value.absent(),
+                Value<int?> unitCostCents = const Value.absent(),
+                Value<int?> stockReference = const Value.absent(),
                 Value<String> status = const Value.absent(),
                 Value<String?> withdrawalReason = const Value.absent(),
                 Value<String?> withdrawnAt = const Value.absent(),
@@ -2978,6 +4198,7 @@ class $$NodesTableTableManager
                 id: id,
                 inventoryId: inventoryId,
                 parentId: parentId,
+                space: space,
                 name: name,
                 nodeType: nodeType,
                 quantity: quantity,
@@ -2986,6 +4207,9 @@ class $$NodesTableTableManager
                 valueMode: valueMode,
                 financialValueCents: financialValueCents,
                 sentimentalValue: sentimentalValue,
+                stockUnit: stockUnit,
+                unitCostCents: unitCostCents,
+                stockReference: stockReference,
                 status: status,
                 withdrawalReason: withdrawalReason,
                 withdrawnAt: withdrawnAt,
@@ -3721,6 +4945,594 @@ typedef $$LocalVerificationEntriesTableProcessedTableManager =
       LocalVerificationEntry,
       PrefetchHooks Function()
     >;
+typedef $$RestorationJournalEntriesTableCreateCompanionBuilder =
+    RestorationJournalEntriesCompanion Function({
+      required String operationId,
+      required String status,
+      required String createdAt,
+      Value<int> rowid,
+    });
+typedef $$RestorationJournalEntriesTableUpdateCompanionBuilder =
+    RestorationJournalEntriesCompanion Function({
+      Value<String> operationId,
+      Value<String> status,
+      Value<String> createdAt,
+      Value<int> rowid,
+    });
+
+class $$RestorationJournalEntriesTableFilterComposer
+    extends Composer<_$InventoryDatabase, $RestorationJournalEntriesTable> {
+  $$RestorationJournalEntriesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get operationId => $composableBuilder(
+    column: $table.operationId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$RestorationJournalEntriesTableOrderingComposer
+    extends Composer<_$InventoryDatabase, $RestorationJournalEntriesTable> {
+  $$RestorationJournalEntriesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get operationId => $composableBuilder(
+    column: $table.operationId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$RestorationJournalEntriesTableAnnotationComposer
+    extends Composer<_$InventoryDatabase, $RestorationJournalEntriesTable> {
+  $$RestorationJournalEntriesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get operationId => $composableBuilder(
+    column: $table.operationId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<String> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+}
+
+class $$RestorationJournalEntriesTableTableManager
+    extends
+        RootTableManager<
+          _$InventoryDatabase,
+          $RestorationJournalEntriesTable,
+          RestorationJournalEntry,
+          $$RestorationJournalEntriesTableFilterComposer,
+          $$RestorationJournalEntriesTableOrderingComposer,
+          $$RestorationJournalEntriesTableAnnotationComposer,
+          $$RestorationJournalEntriesTableCreateCompanionBuilder,
+          $$RestorationJournalEntriesTableUpdateCompanionBuilder,
+          (
+            RestorationJournalEntry,
+            BaseReferences<
+              _$InventoryDatabase,
+              $RestorationJournalEntriesTable,
+              RestorationJournalEntry
+            >,
+          ),
+          RestorationJournalEntry,
+          PrefetchHooks Function()
+        > {
+  $$RestorationJournalEntriesTableTableManager(
+    _$InventoryDatabase db,
+    $RestorationJournalEntriesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$RestorationJournalEntriesTableFilterComposer(
+                $db: db,
+                $table: table,
+              ),
+          createOrderingComposer: () =>
+              $$RestorationJournalEntriesTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$RestorationJournalEntriesTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> operationId = const Value.absent(),
+                Value<String> status = const Value.absent(),
+                Value<String> createdAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => RestorationJournalEntriesCompanion(
+                operationId: operationId,
+                status: status,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String operationId,
+                required String status,
+                required String createdAt,
+                Value<int> rowid = const Value.absent(),
+              }) => RestorationJournalEntriesCompanion.insert(
+                operationId: operationId,
+                status: status,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<
+                    $RestorationJournalEntriesTable,
+                    RestorationJournalEntry
+                  >(table),
+                  BaseReferences<
+                    _$InventoryDatabase,
+                    $RestorationJournalEntriesTable,
+                    RestorationJournalEntry
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$RestorationJournalEntriesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$InventoryDatabase,
+      $RestorationJournalEntriesTable,
+      RestorationJournalEntry,
+      $$RestorationJournalEntriesTableFilterComposer,
+      $$RestorationJournalEntriesTableOrderingComposer,
+      $$RestorationJournalEntriesTableAnnotationComposer,
+      $$RestorationJournalEntriesTableCreateCompanionBuilder,
+      $$RestorationJournalEntriesTableUpdateCompanionBuilder,
+      (
+        RestorationJournalEntry,
+        BaseReferences<
+          _$InventoryDatabase,
+          $RestorationJournalEntriesTable,
+          RestorationJournalEntry
+        >,
+      ),
+      RestorationJournalEntry,
+      PrefetchHooks Function()
+    >;
+typedef $$StockMovementsTableCreateCompanionBuilder =
+    StockMovementsCompanion Function({
+      required String id,
+      required String inventoryId,
+      required String nodeId,
+      required String movementType,
+      required int deltaQuarters,
+      required int balanceAfterQuarters,
+      required String unit,
+      required String createdAt,
+      Value<int> rowid,
+    });
+typedef $$StockMovementsTableUpdateCompanionBuilder =
+    StockMovementsCompanion Function({
+      Value<String> id,
+      Value<String> inventoryId,
+      Value<String> nodeId,
+      Value<String> movementType,
+      Value<int> deltaQuarters,
+      Value<int> balanceAfterQuarters,
+      Value<String> unit,
+      Value<String> createdAt,
+      Value<int> rowid,
+    });
+
+final class $$StockMovementsTableReferences
+    extends
+        BaseReferences<
+          _$InventoryDatabase,
+          $StockMovementsTable,
+          StockMovement
+        > {
+  $$StockMovementsTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $InventoriesTable _inventoryIdTable(_$InventoryDatabase db) => db
+      .inventories
+      .createAlias('stock_movements__inventory_id__inventories__id');
+
+  $$InventoriesTableProcessedTableManager get inventoryId {
+    final $_column = $_itemColumn<String>('inventory_id')!;
+
+    final manager = $$InventoriesTableTableManager(
+      $_db,
+      $_db.inventories,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_inventoryIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$StockMovementsTableFilterComposer
+    extends Composer<_$InventoryDatabase, $StockMovementsTable> {
+  $$StockMovementsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get nodeId => $composableBuilder(
+    column: $table.nodeId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get movementType => $composableBuilder(
+    column: $table.movementType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get deltaQuarters => $composableBuilder(
+    column: $table.deltaQuarters,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get balanceAfterQuarters => $composableBuilder(
+    column: $table.balanceAfterQuarters,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get unit => $composableBuilder(
+    column: $table.unit,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$InventoriesTableFilterComposer get inventoryId {
+    final $$InventoriesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.inventoryId,
+      referencedTable: $db.inventories,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$InventoriesTableFilterComposer(
+            $db: $db,
+            $table: $db.inventories,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$StockMovementsTableOrderingComposer
+    extends Composer<_$InventoryDatabase, $StockMovementsTable> {
+  $$StockMovementsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get nodeId => $composableBuilder(
+    column: $table.nodeId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get movementType => $composableBuilder(
+    column: $table.movementType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get deltaQuarters => $composableBuilder(
+    column: $table.deltaQuarters,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get balanceAfterQuarters => $composableBuilder(
+    column: $table.balanceAfterQuarters,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get unit => $composableBuilder(
+    column: $table.unit,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$InventoriesTableOrderingComposer get inventoryId {
+    final $$InventoriesTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.inventoryId,
+      referencedTable: $db.inventories,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$InventoriesTableOrderingComposer(
+            $db: $db,
+            $table: $db.inventories,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$StockMovementsTableAnnotationComposer
+    extends Composer<_$InventoryDatabase, $StockMovementsTable> {
+  $$StockMovementsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get nodeId =>
+      $composableBuilder(column: $table.nodeId, builder: (column) => column);
+
+  GeneratedColumn<String> get movementType => $composableBuilder(
+    column: $table.movementType,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get deltaQuarters => $composableBuilder(
+    column: $table.deltaQuarters,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get balanceAfterQuarters => $composableBuilder(
+    column: $table.balanceAfterQuarters,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get unit =>
+      $composableBuilder(column: $table.unit, builder: (column) => column);
+
+  GeneratedColumn<String> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  $$InventoriesTableAnnotationComposer get inventoryId {
+    final $$InventoriesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.inventoryId,
+      referencedTable: $db.inventories,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$InventoriesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.inventories,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$StockMovementsTableTableManager
+    extends
+        RootTableManager<
+          _$InventoryDatabase,
+          $StockMovementsTable,
+          StockMovement,
+          $$StockMovementsTableFilterComposer,
+          $$StockMovementsTableOrderingComposer,
+          $$StockMovementsTableAnnotationComposer,
+          $$StockMovementsTableCreateCompanionBuilder,
+          $$StockMovementsTableUpdateCompanionBuilder,
+          (StockMovement, $$StockMovementsTableReferences),
+          StockMovement,
+          PrefetchHooks Function({bool inventoryId})
+        > {
+  $$StockMovementsTableTableManager(
+    _$InventoryDatabase db,
+    $StockMovementsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$StockMovementsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$StockMovementsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$StockMovementsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> inventoryId = const Value.absent(),
+                Value<String> nodeId = const Value.absent(),
+                Value<String> movementType = const Value.absent(),
+                Value<int> deltaQuarters = const Value.absent(),
+                Value<int> balanceAfterQuarters = const Value.absent(),
+                Value<String> unit = const Value.absent(),
+                Value<String> createdAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => StockMovementsCompanion(
+                id: id,
+                inventoryId: inventoryId,
+                nodeId: nodeId,
+                movementType: movementType,
+                deltaQuarters: deltaQuarters,
+                balanceAfterQuarters: balanceAfterQuarters,
+                unit: unit,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String inventoryId,
+                required String nodeId,
+                required String movementType,
+                required int deltaQuarters,
+                required int balanceAfterQuarters,
+                required String unit,
+                required String createdAt,
+                Value<int> rowid = const Value.absent(),
+              }) => StockMovementsCompanion.insert(
+                id: id,
+                inventoryId: inventoryId,
+                nodeId: nodeId,
+                movementType: movementType,
+                deltaQuarters: deltaQuarters,
+                balanceAfterQuarters: balanceAfterQuarters,
+                unit: unit,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$StockMovementsTable, StockMovement>(table),
+                  $$StockMovementsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({inventoryId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (inventoryId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.inventoryId,
+                                referencedTable: $$StockMovementsTableReferences
+                                    ._inventoryIdTable(db),
+                                referencedColumn:
+                                    $$StockMovementsTableReferences
+                                        ._inventoryIdTable(db)
+                                        .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$StockMovementsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$InventoryDatabase,
+      $StockMovementsTable,
+      StockMovement,
+      $$StockMovementsTableFilterComposer,
+      $$StockMovementsTableOrderingComposer,
+      $$StockMovementsTableAnnotationComposer,
+      $$StockMovementsTableCreateCompanionBuilder,
+      $$StockMovementsTableUpdateCompanionBuilder,
+      (StockMovement, $$StockMovementsTableReferences),
+      StockMovement,
+      PrefetchHooks Function({bool inventoryId})
+    >;
 
 class $InventoryDatabaseManager {
   final _$InventoryDatabase _db;
@@ -3738,4 +5550,11 @@ class $InventoryDatabaseManager {
         _db,
         _db.localVerificationEntries,
       );
+  $$RestorationJournalEntriesTableTableManager get restorationJournalEntries =>
+      $$RestorationJournalEntriesTableTableManager(
+        _db,
+        _db.restorationJournalEntries,
+      );
+  $$StockMovementsTableTableManager get stockMovements =>
+      $$StockMovementsTableTableManager(_db, _db.stockMovements);
 }
