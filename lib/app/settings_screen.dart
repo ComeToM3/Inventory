@@ -29,12 +29,15 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   late final BackupExportController _export;
   late final BackupRestoreController _restore;
+  var _showAdvancedByDefault = false;
+  var _preferenceReady = false;
 
   @override
   void initState() {
     super.initState();
     _export = BackupExportController(widget.database);
     _restore = BackupRestoreController(widget.database);
+    unawaited(_loadAdvancedPreference());
   }
 
   @override
@@ -45,6 +48,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   bool get _busy => _export.exporting || _restore.busy;
+
+  Future<void> _loadAdvancedPreference() async {
+    final value = await widget.database.readShowAdvancedByDefault();
+    if (!mounted) return;
+    setState(() {
+      _showAdvancedByDefault = value;
+      _preferenceReady = true;
+    });
+  }
+
+  Future<void> _setAdvancedPreference(bool value) async {
+    setState(() => _showAdvancedByDefault = value);
+    await widget.database.writeShowAdvancedByDefault(value);
+  }
 
   Future<void> _startExport() async {
     if (_busy) return;
@@ -217,6 +234,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       MaterialPageRoute(builder: (_) => const AboutScreen()),
                     );
                   },
+                ),
+                const SizedBox(height: 8),
+                const Divider(),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text(AppStrings.showAdvancedByDefault),
+                  subtitle: const Text(AppStrings.showAdvancedByDefaultHelp),
+                  value: _showAdvancedByDefault,
+                  onChanged: !_preferenceReady || _busy
+                      ? null
+                      : (value) => unawaited(_setAdvancedPreference(value)),
                 ),
                 const SizedBox(height: 8),
                 const Divider(),

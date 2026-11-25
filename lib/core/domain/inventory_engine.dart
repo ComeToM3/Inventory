@@ -7,6 +7,8 @@ import '../database/inventory_database.dart';
 import 'inventory_exception.dart';
 import 'inventory_models.dart';
 import 'inventory_name.dart';
+import 'permanent_roots.dart';
+import 'purchase_models.dart';
 import 'stock_quantity.dart';
 import 'uuid_generator.dart';
 
@@ -49,10 +51,17 @@ class InventoryEngine {
                     node.nodeType.equals(NodeType.location.storageValue) &
                     node.status.equals(NodeStatus.active.storageValue),
               )
-              ..orderBy(_byName))
+              ..orderBy(_bySiblingOrder))
             .get();
     return rows.map(_toNode).toList();
   });
+
+  /// Ensures the permanent root location for [space] exists and is the sole
+  /// active root. Existing orphan roots are reparented under it (ids kept).
+  /// Idempotent across launches; does not rename an already-present root.
+  Future<InventoryNode> ensurePermanentRoot({
+    InventorySpace space = InventorySpace.goods,
+  }) => _run(() => _ensurePermanentRoot(space));
 
   Future<List<InventoryNode>> getChildren(String parentId) => _run(() async {
     final parent = await _requireNode(parentId);
@@ -65,9 +74,7 @@ class InventoryEngine {
                     node.parentId.equals(parentId) &
                     node.status.equals(NodeStatus.active.storageValue),
               )
-              // Direct simple items first, then locations / item-containers;
-              // alphabetical within each group. Presentation only — parent_id unchanged.
-              ..orderBy(_byTreeDisplay))
+              ..orderBy(_bySiblingOrder))
             .get();
     return rows.map(_toNode).toList();
   });
@@ -346,6 +353,29 @@ class InventoryEngine {
   ///
   /// Stock products always start at [StockLevel.full]. Optional
   /// [stockReference] is a simple total hint (not a unit of measure).
+  ///
+  /// To-buy needs store [quantity] as remaining and [desiredQuantity] as the
+  /// wished count (both start equal). Optional [targetPriceCents] is a unit
+  /// target, not a paid price or goods valuation.
+  Future<bool> readShowAdvancedByDefault() =>
+      _db.readShowAdvancedByDefault();
+
+  Future<void> writeShowAdvancedByDefault(bool value) =>
+      _db.writeShowAdvancedByDefault(value);
+
+  /// Updates only the per-fiche advanced-section expansion flag.
+  Future<InventoryNode> updateShowAdvanced(
+    String nodeId, {
+    required bool showAdvanced,
+  }) => _run(() async {
+    await _requireNode(nodeId);
+    await _writeNode(
+      nodeId,
+      NodesCompanion(showAdvanced: Value(showAdvanced)),
+    );
+    return _toNode(await _requireNode(nodeId));
+  });
+
   Future<InventoryNode> createNode({
     required String name,
     required NodeType type,
@@ -355,20 +385,40 @@ class InventoryEngine {
     int? quantity,
     NodeValuation? valuation,
     int? stockReference,
+    int? targetPriceCents,
+    bool? showAdvanced,
+    String? barcodeRef,
+    String? purchaseDate,
+    int? purchasePriceCents,
+    String? purchasePlace,
+    ItemObjective objective = ItemObjective.none,
+    String? photoRelPath,
+    String? iconKey,
   }) => _run(() async {
     final normalizedName = InventoryName.normalizeForStorage(name);
     final isStock = space == InventorySpace.stock;
+    final isToBuy = space == InventorySpace.toBuy;
     final isStockProduct = isStock && type == NodeType.item;
     final isStockContainer = isStock && type == NodeType.itemContainer;
+    final isToBuyNeed = isToBuy && type == NodeType.item;
 
-    if (isStock) {
+    if (isStock || isToBuy) {
       if (valuation != null) {
         throw const InventoryException(InventoryErrorCode.requiresItem);
       }
+    }
+    if (isStock) {
       if (!isStockProduct && quantity != null) {
         throw const InventoryException(InventoryErrorCode.requiresItem);
       }
       if (!isStockProduct && stockReference != null) {
+        throw const InventoryException(InventoryErrorCode.requiresItem);
+      }
+    } else if (isToBuy) {
+      if (!isToBuyNeed && (quantity != null || targetPriceCents != null)) {
+        throw const InventoryException(InventoryErrorCode.requiresItem);
+      }
+      if (stockReference != null) {
         throw const InventoryException(InventoryErrorCode.requiresItem);
       }
     } else if (!type.isItem && (quantity != null || valuation != null)) {
@@ -377,17 +427,48 @@ class InventoryEngine {
     if (isStockProduct && stockReference != null && stockReference < 1) {
       throw const InventoryException(InventoryErrorCode.invalidQuantity);
     }
+    if (targetPriceCents != null &&
+        (!isToBuyNeed || targetPriceCents < 0)) {
+      throw const InventoryException(InventoryErrorCode.invalidFinancialValue);
+    }
+    final isGoodsItem = space == InventorySpace.goods && type.isItem;
+    if (!isGoodsItem &&
+        (barcodeRef != null ||
+            purchaseDate != null ||
+            purchasePriceCents != null ||
+            purchasePlace != null ||
+            photoRelPath != null ||
+            objective != ItemObjective.none)) {
+      throw const InventoryException(InventoryErrorCode.requiresItem);
+    }
+    if (isGoodsItem) {
+      _validateGoodsAdvanced(
+        purchaseDate: purchaseDate,
+        purchasePriceCents: purchasePriceCents,
+      );
+    }
 
     final int? itemQuantity;
+    final int? desiredQuantity;
     final NodeValuation? itemValuation;
     if (isStockProduct) {
       itemQuantity = StockLevel.full.storageQuarters;
+      desiredQuantity = null;
       itemValuation = null;
-    } else if (isStockContainer || type == NodeType.location) {
+    } else if (isToBuyNeed) {
+      itemQuantity = quantity ?? defaultItemQuantity;
+      desiredQuantity = itemQuantity;
+      itemValuation = null;
+      _validateQuantity(itemQuantity);
+    } else if (isStockContainer ||
+        type == NodeType.location ||
+        (isToBuy && type == NodeType.itemContainer)) {
       itemQuantity = null;
+      desiredQuantity = null;
       itemValuation = null;
     } else {
       itemQuantity = type.isItem ? (quantity ?? defaultItemQuantity) : null;
+      desiredQuantity = null;
       itemValuation = type.isItem ? valuation : null;
       if (itemQuantity != null) _validateQuantity(itemQuantity);
       if (itemValuation != null) _validateValuation(itemValuation);
@@ -397,16 +478,24 @@ class InventoryEngine {
     }
 
     final inventoryId = await _requireInventoryId();
+    // Permanent root is the only parentId-null location; all creates nest under
+    // an existing containment node (typically the permanent root).
     if (parentId == null) {
-      if (!type.canBeRoot) {
-        throw const InventoryException(InventoryErrorCode.parentRequired);
-      }
-    } else {
-      await _requireValidParent(parentId, inventoryId, childSpace: space);
+      throw const InventoryException(InventoryErrorCode.parentRequired);
     }
+    await _requireValidParent(parentId, inventoryId, childSpace: space);
 
     final id = _generateId();
     final now = _timestamp();
+    final siblingOrder = await _nextSiblingOrder(
+      inventoryId: inventoryId,
+      space: space,
+      parentId: parentId,
+    );
+    final supportsAdvanced = _supportsAdvancedSection(space: space, type: type);
+    final resolvedShowAdvanced = supportsAdvanced
+        ? (showAdvanced ?? await _db.readShowAdvancedByDefault())
+        : false;
     await _db
         .into(_db.nodes)
         .insert(
@@ -426,6 +515,25 @@ class InventoryEngine {
             stockUnit: Value(isStockProduct ? stockUnitSentinel : null),
             unitCostCents: const Value(null),
             stockReference: Value(isStockProduct ? stockReference : null),
+            desiredQuantity: Value(desiredQuantity),
+            targetPriceCents: Value(isToBuyNeed ? targetPriceCents : null),
+            siblingOrder: Value(siblingOrder),
+            showAdvanced: Value(resolvedShowAdvanced),
+            barcodeRef: Value(
+              isGoodsItem ? _normalizeOptional(barcodeRef) : null,
+            ),
+            purchaseDate: Value(isGoodsItem ? purchaseDate : null),
+            purchasePriceCents: Value(isGoodsItem ? purchasePriceCents : null),
+            purchasePlace: Value(
+              isGoodsItem ? _normalizeOptional(purchasePlace) : null,
+            ),
+            objective: Value(
+              isGoodsItem ? objective.storageValue : ItemObjective.none.storageValue,
+            ),
+            photoRelPath: Value(
+              isGoodsItem ? _normalizeOptional(photoRelPath) : null,
+            ),
+            iconKey: Value(_normalizeOptional(iconKey)),
             createdAt: now,
             updatedAt: now,
           ),
@@ -450,6 +558,7 @@ class InventoryEngine {
     required String name,
     String? condition,
     int? quantity,
+    String? iconKey,
   }) => _run(() async {
     final node = await _requireNode(nodeId);
     _requireActive(node);
@@ -466,6 +575,7 @@ class InventoryEngine {
       NodesCompanion(
         name: Value(normalizedName),
         condition: Value(_normalizeOptional(condition)),
+        iconKey: Value(_normalizeOptional(iconKey)),
       ),
     );
     return _toNode(await _requireNode(nodeId));
@@ -474,8 +584,9 @@ class InventoryEngine {
   Future<InventoryNode> updateQuantity(String nodeId, int quantity) =>
       _run(() async {
         final node = await _requireActiveItem(nodeId);
-        if (InventorySpace.parse(node.space) == InventorySpace.stock) {
-          // Stock balances change only via historized movements.
+        final space = InventorySpace.parse(node.space);
+        if (space == InventorySpace.stock || space == InventorySpace.toBuy) {
+          // Stock: movements only. To-buy: [updateToBuyNeed].
           throw const InventoryException(InventoryErrorCode.invalidQuantity);
         }
         _validateQuantity(quantity);
@@ -487,12 +598,338 @@ class InventoryEngine {
         return _toNode(await _requireNode(nodeId));
       });
 
+  /// Updates an active to-buy need (name, parent, remaining qty, target price).
+  Future<InventoryNode> updateToBuyNeed(
+    String nodeId, {
+    required String name,
+    String? parentId,
+    required int remainingQuantity,
+    int? targetPriceCents,
+    String? iconKey,
+  }) => _run(() async {
+    final node = await _requireToBuyNeed(nodeId);
+    final normalizedName = InventoryName.normalizeForStorage(
+      name,
+      existingStored: node.name,
+    );
+    _validateQuantity(remainingQuantity);
+    if (targetPriceCents != null && targetPriceCents < 0) {
+      throw const InventoryException(InventoryErrorCode.invalidFinancialValue);
+    }
+    var desired = node.desiredQuantity!;
+    if (desired == node.quantity) {
+      // Never partially acquired: keep desired aligned with remaining.
+      desired = remainingQuantity;
+    } else if (remainingQuantity > desired) {
+      desired = remainingQuantity;
+    }
+    if (parentId != node.parentId) {
+      await _writeMove(nodeId, parentId);
+    }
+    await _writeNode(
+      nodeId,
+      NodesCompanion(
+        name: Value(normalizedName),
+        quantity: Value(remainingQuantity),
+        desiredQuantity: Value(desired),
+        targetPriceCents: Value(targetPriceCents),
+        iconKey: Value(_normalizeOptional(iconKey)),
+      ),
+    );
+    return _toNode(await _requireNode(nodeId));
+  });
+
+  /// Records a purchase against an active need and places goods/stock.
+  ///
+  /// Stock destination never converts purchase count into Stock levels
+  /// (M2.1-C / D03 explicit link). Paid price is ledger-only (D06).
+  Future<InventoryNode> acquireNeed(
+    String needId, {
+    required int quantity,
+    required InventorySpace destinationSpace,
+    String? destinationParentId,
+    String? existingStockProductId,
+    StockAcquireMode stockMode = StockAcquireMode.createNew,
+    int? paidPriceCents,
+    NodeValuation? goodsValuation,
+  }) => _run(() async {
+    final need = await _requireToBuyNeed(needId);
+    if (quantity < 1 || quantity > need.quantity!) {
+      throw const InventoryException(
+        InventoryErrorCode.invalidPurchaseQuantity,
+      );
+    }
+    if (paidPriceCents != null && paidPriceCents < 0) {
+      throw const InventoryException(InventoryErrorCode.invalidFinancialValue);
+    }
+    if (destinationSpace != InventorySpace.goods &&
+        destinationSpace != InventorySpace.stock) {
+      throw const InventoryException(
+        InventoryErrorCode.invalidPurchaseDestination,
+      );
+    }
+
+    final inventoryId = need.inventoryId;
+    final now = _timestamp();
+    late final String destinationNodeId;
+    String? resolvedParentId = destinationParentId;
+
+    if (destinationSpace == InventorySpace.goods) {
+      if (goodsValuation != null) {
+        _validateValuation(goodsValuation);
+        _validateFinancialTotal(goodsValuation, quantity);
+      }
+      if (destinationParentId == null) {
+        throw const InventoryException(InventoryErrorCode.parentRequired);
+      }
+      await _requireValidParent(
+        destinationParentId,
+        inventoryId,
+        childSpace: InventorySpace.goods,
+      );
+      destinationNodeId = _generateId();
+      final goodsOrder = await _nextSiblingOrder(
+        inventoryId: inventoryId,
+        space: InventorySpace.goods,
+        parentId: destinationParentId,
+      );
+      final goodsShowAdvanced = await _db.readShowAdvancedByDefault();
+      await _db
+          .into(_db.nodes)
+          .insert(
+            NodesCompanion.insert(
+              id: destinationNodeId,
+              inventoryId: inventoryId,
+              parentId: Value(destinationParentId),
+              space: Value(InventorySpace.goods.storageValue),
+              name: need.name,
+              nodeType: NodeType.item.storageValue,
+              quantity: Value(quantity),
+              description: const Value(null),
+              condition: const Value(null),
+              valueMode: Value(_valueMode(goodsValuation)),
+              financialValueCents: Value(_financialCents(goodsValuation)),
+              sentimentalValue: Value(_sentimentalRating(goodsValuation)),
+              stockUnit: const Value(null),
+              unitCostCents: const Value(null),
+              stockReference: const Value(null),
+              desiredQuantity: const Value(null),
+              targetPriceCents: const Value(null),
+              siblingOrder: Value(goodsOrder),
+              showAdvanced: Value(goodsShowAdvanced),
+              objective: Value(ItemObjective.none.storageValue),
+              createdAt: now,
+              updatedAt: now,
+            ),
+          );
+    } else {
+      if (stockMode == StockAcquireMode.createNew) {
+        if (existingStockProductId != null) {
+          throw const InventoryException(
+            InventoryErrorCode.invalidPurchaseDestination,
+          );
+        }
+        if (destinationParentId == null) {
+          throw const InventoryException(InventoryErrorCode.parentRequired);
+        }
+        await _requireValidParent(
+          destinationParentId,
+          inventoryId,
+          childSpace: InventorySpace.stock,
+        );
+        destinationNodeId = _generateId();
+        final stockOrder = await _nextSiblingOrder(
+          inventoryId: inventoryId,
+          space: InventorySpace.stock,
+          parentId: destinationParentId,
+        );
+        final stockShowAdvanced = await _db.readShowAdvancedByDefault();
+        await _db
+            .into(_db.nodes)
+            .insert(
+              NodesCompanion.insert(
+                id: destinationNodeId,
+                inventoryId: inventoryId,
+                parentId: Value(destinationParentId),
+                space: Value(InventorySpace.stock.storageValue),
+                name: need.name,
+                nodeType: NodeType.item.storageValue,
+                quantity: Value(StockLevel.full.storageQuarters),
+                description: const Value(null),
+                condition: const Value(null),
+                valueMode: const Value(null),
+                financialValueCents: const Value(null),
+                sentimentalValue: const Value(null),
+                stockUnit: const Value(stockUnitSentinel),
+                unitCostCents: const Value(null),
+                stockReference: const Value(null),
+                desiredQuantity: const Value(null),
+                targetPriceCents: const Value(null),
+                siblingOrder: Value(stockOrder),
+                showAdvanced: Value(stockShowAdvanced),
+                createdAt: now,
+                updatedAt: now,
+              ),
+            );
+        await _insertStockMovement(
+          inventoryId: inventoryId,
+          nodeId: destinationNodeId,
+          type: StockMovementType.initial,
+          deltaQuarters: StockLevel.full.storageQuarters,
+          balanceAfterQuarters: StockLevel.full.storageQuarters,
+          unit: stockUnitSentinel,
+          createdAt: now,
+        );
+      } else {
+        final productId = existingStockProductId;
+        if (productId == null) {
+          throw const InventoryException(
+            InventoryErrorCode.invalidPurchaseDestination,
+          );
+        }
+        final product = await _requireStockProduct(productId);
+        if (product.inventoryId != inventoryId) {
+          throw const InventoryException(InventoryErrorCode.inventoryMismatch);
+        }
+        destinationNodeId = product.id;
+        resolvedParentId = product.parentId;
+        if (stockMode == StockAcquireMode.resetToFull) {
+          final oldQ =
+              StockLevel.fromStoredQuarters(product.quantity!).storageQuarters;
+          final newQ = StockLevel.full.storageQuarters;
+          if (oldQ != newQ) {
+            await _writeNode(
+              product.id,
+              NodesCompanion(quantity: Value(newQ)),
+            );
+            await _insertStockMovement(
+              inventoryId: inventoryId,
+              nodeId: product.id,
+              type: StockMovementType.correct,
+              deltaQuarters: newQ - oldQ,
+              balanceAfterQuarters: newQ,
+              unit: stockUnitSentinel,
+              createdAt: now,
+            );
+          }
+        }
+      }
+    }
+
+    final remaining = need.quantity! - quantity;
+    final complete = remaining == 0;
+    await _writeNode(
+      needId,
+      NodesCompanion(
+        quantity: Value(remaining),
+        status: Value(
+          complete
+              ? NodeStatus.acquired.storageValue
+              : NodeStatus.active.storageValue,
+        ),
+        parentId: complete ? const Value(null) : const Value.absent(),
+      ),
+    );
+    await _insertPurchaseEvent(
+      inventoryId: inventoryId,
+      needNodeId: needId,
+      type: PurchaseEventType.acquire,
+      quantity: quantity,
+      targetPriceCents: need.targetPriceCents,
+      paidPriceCents: paidPriceCents,
+      destinationSpace: destinationSpace,
+      destinationNodeId: destinationNodeId,
+      destinationParentId: resolvedParentId,
+      createdAt: now,
+    );
+    return _toNode(await _requireNode(needId));
+  });
+
+  /// Abandons an active to-buy need (D04). No goods/stock are created.
+  Future<InventoryNode> abandonNeed(String needId) => _run(() async {
+    final need = await _requireToBuyNeed(needId);
+    final remaining = need.quantity!;
+    final now = _timestamp();
+    await _writeNode(
+      needId,
+      NodesCompanion(
+        status: Value(NodeStatus.abandoned.storageValue),
+        parentId: const Value(null),
+      ),
+    );
+    await _insertPurchaseEvent(
+      inventoryId: need.inventoryId,
+      needNodeId: needId,
+      type: PurchaseEventType.abandon,
+      quantity: remaining,
+      targetPriceCents: need.targetPriceCents,
+      paidPriceCents: null,
+      destinationSpace: null,
+      destinationNodeId: null,
+      destinationParentId: null,
+      createdAt: now,
+    );
+    return _toNode(await _requireNode(needId));
+  });
+
+  /// Purchase / abandon ledger for À acheter (space-isolated).
+  Future<List<PurchaseLedgerEntryNamed>> getRecentPurchaseEvents({
+    int limit = 80,
+  }) => _run(() async {
+    final inventoryId = await _requireInventoryId();
+    final rows = await _db
+        .customSelect(
+          '''
+SELECT e.id, e.need_node_id, e.event_type, e.quantity,
+       e.target_price_cents, e.paid_price_cents, e.destination_space,
+       e.destination_node_id, e.destination_parent_id, e.created_at,
+       n.name AS need_name
+FROM purchase_events e
+INNER JOIN nodes n
+  ON n.inventory_id = e.inventory_id AND n.id = e.need_node_id
+WHERE e.inventory_id = ?
+  AND n.space = 'to_buy'
+ORDER BY e.created_at DESC, e.id DESC
+LIMIT ?
+''',
+          variables: [
+            Variable.withString(inventoryId),
+            Variable.withInt(limit),
+          ],
+          readsFrom: {_db.purchaseEvents, _db.nodes},
+        )
+        .get();
+    return [
+      for (final row in rows)
+        PurchaseLedgerEntryNamed(
+          entry: PurchaseLedgerEntry(
+            id: row.read<String>('id'),
+            needNodeId: row.read<String>('need_node_id'),
+            type: PurchaseEventType.parse(row.read<String>('event_type')),
+            quantity: row.read<int>('quantity'),
+            targetPriceCents: row.readNullable<int>('target_price_cents'),
+            paidPriceCents: row.readNullable<int>('paid_price_cents'),
+            destinationSpace: () {
+              final raw = row.readNullable<String>('destination_space');
+              return raw == null ? null : InventorySpace.parse(raw);
+            }(),
+            destinationNodeId: row.readNullable<String>('destination_node_id'),
+            destinationParentId:
+                row.readNullable<String>('destination_parent_id'),
+            createdAt: _parseDate(row.read<String>('created_at')),
+          ),
+          needName: row.read<String>('need_name'),
+        ),
+    ];
+  });
+
   /// Updates Stock product name, parent, and optional reference quantity.
   Future<InventoryNode> updateStockProduct(
     String nodeId, {
     required String name,
     String? parentId,
     int? stockReference,
+    String? iconKey,
   }) => _run(() async {
     final node = await _requireStockProduct(nodeId);
     final normalizedName = InventoryName.normalizeForStorage(
@@ -512,6 +949,7 @@ class InventoryEngine {
         stockReference: Value(stockReference),
         stockUnit: const Value(stockUnitSentinel),
         unitCostCents: const Value(null),
+        iconKey: Value(_normalizeOptional(iconKey)),
       ),
     );
     return _toNode(await _requireNode(nodeId));
@@ -644,6 +1082,49 @@ LIMIT ?
         );
   }
 
+  Future<void> _insertPurchaseEvent({
+    required String inventoryId,
+    required String needNodeId,
+    required PurchaseEventType type,
+    required int quantity,
+    required int? targetPriceCents,
+    required int? paidPriceCents,
+    required InventorySpace? destinationSpace,
+    required String? destinationNodeId,
+    required String? destinationParentId,
+    required String createdAt,
+  }) {
+    return _db
+        .into(_db.purchaseEvents)
+        .insert(
+          PurchaseEventsCompanion.insert(
+            id: _generateId(),
+            inventoryId: inventoryId,
+            needNodeId: needNodeId,
+            eventType: type.storageValue,
+            quantity: quantity,
+            targetPriceCents: Value(targetPriceCents),
+            paidPriceCents: Value(paidPriceCents),
+            destinationSpace: Value(destinationSpace?.storageValue),
+            destinationNodeId: Value(destinationNodeId),
+            destinationParentId: Value(destinationParentId),
+            createdAt: createdAt,
+          ),
+        );
+  }
+
+  Future<Node> _requireToBuyNeed(String nodeId) async {
+    final node = await _requireActiveItem(nodeId);
+    if (InventorySpace.parse(node.space) != InventorySpace.toBuy ||
+        _nodeType(node) != NodeType.item) {
+      throw const InventoryException(InventoryErrorCode.requiresItem);
+    }
+    if (node.desiredQuantity == null || node.quantity == null) {
+      throw const InventoryException(InventoryErrorCode.invalidStoredData);
+    }
+    return node;
+  }
+
   Future<Node> _requireStockProduct(String nodeId) async {
     final node = await _requireActiveItem(nodeId);
     if (InventorySpace.parse(node.space) != InventorySpace.stock ||
@@ -660,6 +1141,9 @@ LIMIT ?
   Future<InventoryNode> setValuation(String nodeId, NodeValuation? valuation) =>
       _run(() async {
         final node = await _requireActiveItem(nodeId);
+        if (InventorySpace.parse(node.space) != InventorySpace.goods) {
+          throw const InventoryException(InventoryErrorCode.requiresItem);
+        }
         if (valuation != null) {
           _validateValuation(valuation);
           _validateFinancialTotal(valuation, node.quantity!);
@@ -695,11 +1179,102 @@ LIMIT ?
 
   /// Moves [nodeId] with all its descendants by changing only its parent.
   /// A null [newParentId] is accepted only for a location becoming a root.
+  /// Places the node at the end of the destination sibling list.
   Future<InventoryNode> moveNode(String nodeId, String? newParentId) =>
       _run(() async {
-        await _writeMove(nodeId, newParentId);
+        final node = await _requireNode(nodeId);
+        _requireActive(node);
+        final space = InventorySpace.parse(node.space);
+        final resolvedParentId =
+            newParentId ?? PermanentRoots.idFor(space);
+        await _writeMove(nodeId, resolvedParentId);
+        final order = await _nextSiblingOrder(
+          inventoryId: node.inventoryId,
+          space: space,
+          parentId: resolvedParentId,
+          excludingId: nodeId,
+        );
+        await _writeNode(
+          nodeId,
+          NodesCompanion(siblingOrder: Value(order)),
+        );
         return _toNode(await _requireNode(nodeId));
       });
+
+  /// Persists a new manual order for active siblings under [parentId].
+  /// [orderedIds] must be a permutation of the current active siblings.
+  Future<void> reorderSiblings({
+    required InventorySpace space,
+    String? parentId,
+    required List<String> orderedIds,
+  }) => _run(() async {
+    if (orderedIds.isEmpty) {
+      throw const InventoryException(InventoryErrorCode.invalidHierarchy);
+    }
+    final inventoryId = await _requireInventoryId();
+    final current = await _activeSiblingRows(
+      inventoryId: inventoryId,
+      space: space,
+      parentId: parentId,
+    );
+    if (current.length != orderedIds.length) {
+      throw const InventoryException(InventoryErrorCode.invalidHierarchy);
+    }
+    final currentIds = {for (final row in current) row.id};
+    if (currentIds.length != orderedIds.length ||
+        !orderedIds.every(currentIds.contains)) {
+      throw const InventoryException(InventoryErrorCode.invalidHierarchy);
+    }
+    for (final row in current) {
+      if (InventorySpace.parse(row.space) != space) {
+        throw const InventoryException(InventoryErrorCode.spaceMismatch);
+      }
+    }
+    for (var i = 0; i < orderedIds.length; i++) {
+      await _writeNode(
+        orderedIds[i],
+        NodesCompanion(siblingOrder: Value(i)),
+      );
+    }
+  });
+
+  Future<int> _nextSiblingOrder({
+    required String inventoryId,
+    required InventorySpace space,
+    required String? parentId,
+    String? excludingId,
+  }) async {
+    final rows = await _activeSiblingRows(
+      inventoryId: inventoryId,
+      space: space,
+      parentId: parentId,
+    );
+    var maxOrder = -1;
+    for (final row in rows) {
+      if (row.id == excludingId) continue;
+      if (row.siblingOrder > maxOrder) maxOrder = row.siblingOrder;
+    }
+    return maxOrder + 1;
+  }
+
+  Future<List<Node>> _activeSiblingRows({
+    required String inventoryId,
+    required InventorySpace space,
+    required String? parentId,
+  }) {
+    final query = _db.select(_db.nodes)
+      ..where(
+        (node) =>
+            node.inventoryId.equals(inventoryId) &
+            node.space.equals(space.storageValue) &
+            node.status.equals(NodeStatus.active.storageValue) &
+            (parentId == null
+                ? node.parentId.isNull()
+                : node.parentId.equals(parentId)),
+      )
+      ..orderBy(_bySiblingOrder);
+    return query.get();
+  }
 
   /// Updates fields and optionally moves / converts item kind in one
   /// transaction so a failed step never leaves a partial update committed.
@@ -713,6 +1288,13 @@ LIMIT ?
     NodeType? itemKind,
     String? newParentId,
     required bool move,
+    String? barcodeRef,
+    String? purchaseDate,
+    int? purchasePriceCents,
+    String? purchasePlace,
+    ItemObjective? objective,
+    String? photoRelPath,
+    String? iconKey,
   }) => _run(() async {
     if (itemKind != null) {
       await _writeItemKind(nodeId, itemKind);
@@ -724,6 +1306,14 @@ LIMIT ?
         condition: condition,
         quantity: quantity!,
         valuation: valuation,
+        writeAdvanced: true,
+        barcodeRef: barcodeRef,
+        purchaseDate: purchaseDate,
+        purchasePriceCents: purchasePriceCents,
+        purchasePlace: purchasePlace,
+        objective: objective ?? ItemObjective.none,
+        photoRelPath: photoRelPath,
+        iconKey: iconKey,
       );
     } else {
       final node = await _requireNode(nodeId);
@@ -737,6 +1327,7 @@ LIMIT ?
         NodesCompanion(
           name: Value(normalizedName),
           condition: Value(_normalizeOptional(condition)),
+          iconKey: Value(_normalizeOptional(iconKey)),
         ),
       );
     }
@@ -776,9 +1367,18 @@ LIMIT ?
     String? condition,
     required int quantity,
     NodeValuation? valuation,
+    bool writeAdvanced = false,
+    String? barcodeRef,
+    String? purchaseDate,
+    int? purchasePriceCents,
+    String? purchasePlace,
+    ItemObjective objective = ItemObjective.none,
+    String? photoRelPath,
+    String? iconKey,
   }) async {
     final node = await _requireActiveItem(nodeId);
-    if (InventorySpace.parse(node.space) == InventorySpace.stock) {
+    final space = InventorySpace.parse(node.space);
+    if (space == InventorySpace.stock) {
       throw const InventoryException(InventoryErrorCode.invalidQuantity);
     }
     final normalizedName = InventoryName.normalizeForStorage(
@@ -790,6 +1390,13 @@ LIMIT ?
       _validateValuation(valuation);
       _validateFinancialTotal(valuation, quantity);
     }
+    final writeGoodsAdvanced = writeAdvanced && space == InventorySpace.goods;
+    if (writeGoodsAdvanced) {
+      _validateGoodsAdvanced(
+        purchaseDate: purchaseDate,
+        purchasePriceCents: purchasePriceCents,
+      );
+    }
     await _writeNode(
       nodeId,
       NodesCompanion(
@@ -799,6 +1406,24 @@ LIMIT ?
         valueMode: Value(_valueMode(valuation)),
         financialValueCents: Value(_financialCents(valuation)),
         sentimentalValue: Value(_sentimentalRating(valuation)),
+        barcodeRef: writeGoodsAdvanced
+            ? Value(_normalizeOptional(barcodeRef))
+            : const Value.absent(),
+        purchaseDate:
+            writeGoodsAdvanced ? Value(purchaseDate) : const Value.absent(),
+        purchasePriceCents: writeGoodsAdvanced
+            ? Value(purchasePriceCents)
+            : const Value.absent(),
+        purchasePlace: writeGoodsAdvanced
+            ? Value(_normalizeOptional(purchasePlace))
+            : const Value.absent(),
+        objective: writeGoodsAdvanced
+            ? Value(objective.storageValue)
+            : const Value.absent(),
+        photoRelPath: writeGoodsAdvanced
+            ? Value(_normalizeOptional(photoRelPath))
+            : const Value.absent(),
+        iconKey: Value(_normalizeOptional(iconKey)),
       ),
     );
   }
@@ -806,25 +1431,27 @@ LIMIT ?
   Future<void> _writeMove(String nodeId, String? newParentId) async {
     final node = await _requireNode(nodeId);
     _requireActive(node);
-    final type = _nodeType(node);
-    final space = InventorySpace.parse(node.space);
-    if (newParentId == null) {
-      if (!type.canBeRoot) {
-        throw const InventoryException(InventoryErrorCode.parentRequired);
-      }
-    } else {
-      if (newParentId == nodeId) {
-        throw const InventoryException(InventoryErrorCode.cycleDetected);
-      }
-      await _requireValidParent(
-        newParentId,
-        node.inventoryId,
-        childSpace: space,
-        movingNodeId: nodeId,
-      );
+    if (PermanentRoots.isPermanentId(nodeId)) {
+      throw const InventoryException(InventoryErrorCode.permanentRootProtected);
     }
+    final space = InventorySpace.parse(node.space);
+    // Null destination = nest under the permanent root (sole true root).
+    final resolvedParentId =
+        newParentId ?? PermanentRoots.idFor(space);
+    if (resolvedParentId == nodeId) {
+      throw const InventoryException(InventoryErrorCode.cycleDetected);
+    }
+    await _requireValidParent(
+      resolvedParentId,
+      node.inventoryId,
+      childSpace: space,
+      movingNodeId: nodeId,
+    );
     // Ordinary moves never change space; cross-space transfers are later ops.
-    await _writeNode(nodeId, NodesCompanion(parentId: Value(newParentId)));
+    await _writeNode(
+      nodeId,
+      NodesCompanion(parentId: Value(resolvedParentId)),
+    );
   }
 
   /// Withdraws an empty item from the active inventory while keeping its
@@ -846,12 +1473,209 @@ LIMIT ?
       });
 
   /// Permanently deletes an active node created by mistake, without history.
-  Future<void> deleteNodePermanently(String nodeId) => _run(() async {
+  /// Returns relative paths of supporting documents that must be deleted on disk.
+  Future<List<String>> deleteNodePermanently(String nodeId) => _run(() async {
+    if (PermanentRoots.isPermanentId(nodeId)) {
+      throw const InventoryException(InventoryErrorCode.permanentRootProtected);
+    }
     final node = await _requireNode(nodeId);
     _requireActive(node);
     await _requireNoChildren(node);
+    final docs = await _documentRowsForNode(nodeId);
+    final paths = [for (final doc in docs) doc.relPath];
     await (_db.delete(_db.nodes)..where((row) => row.id.equals(nodeId))).go();
+    return paths;
   });
+
+  Future<InventoryNode> _ensurePermanentRoot(InventorySpace space) async {
+    if (space == InventorySpace.goods) {
+      await _db.repairAccidentalSellObjectivesOnce();
+    }
+    final inventoryId = await _requireInventoryId();
+    final rootId = PermanentRoots.idFor(space);
+    final now = _timestamp();
+    final existing = await (_db.select(
+      _db.nodes,
+    )..where((node) => node.id.equals(rootId))).getSingleOrNull();
+
+    if (existing == null) {
+      await _db
+          .into(_db.nodes)
+          .insert(
+            NodesCompanion.insert(
+              id: rootId,
+              inventoryId: inventoryId,
+              parentId: const Value(null),
+              space: Value(space.storageValue),
+              name: PermanentRoots.defaultName,
+              nodeType: NodeType.location.storageValue,
+              quantity: const Value(null),
+              description: const Value(null),
+              condition: const Value(null),
+              valueMode: const Value(null),
+              financialValueCents: const Value(null),
+              sentimentalValue: const Value(null),
+              stockUnit: const Value(null),
+              unitCostCents: const Value(null),
+              stockReference: const Value(null),
+              desiredQuantity: const Value(null),
+              targetPriceCents: const Value(null),
+              siblingOrder: const Value(0),
+              showAdvanced: const Value(false),
+              createdAt: now,
+              updatedAt: now,
+            ),
+          );
+    } else {
+      // Keep custom name; restore root invariants if a backup drifted.
+      await _writeNode(
+        rootId,
+        NodesCompanion(
+          inventoryId: Value(inventoryId),
+          parentId: const Value(null),
+          space: Value(space.storageValue),
+          nodeType: Value(NodeType.location.storageValue),
+          status: Value(NodeStatus.active.storageValue),
+          withdrawalReason: const Value(null),
+          withdrawnAt: const Value(null),
+        ),
+      );
+    }
+
+    final orphans =
+        await (_db.select(_db.nodes)
+              ..where(
+                (node) =>
+                    node.inventoryId.equals(inventoryId) &
+                    node.parentId.isNull() &
+                    node.space.equals(space.storageValue) &
+                    node.nodeType.equals(NodeType.location.storageValue) &
+                    node.status.equals(NodeStatus.active.storageValue) &
+                    node.id.isNotValue(rootId),
+              )
+              ..orderBy(_bySiblingOrder))
+            .get();
+
+    var order = 0;
+    for (final orphan in orphans) {
+      order += 1;
+      await _writeNode(
+        orphan.id,
+        NodesCompanion(
+          parentId: Value(rootId),
+          siblingOrder: Value(order),
+        ),
+      );
+    }
+
+    return _toNode(await _requireNode(rootId));
+  }
+
+  Future<List<NodeDocument>> listNodeDocuments(String nodeId) => _run(() async {
+    await _requireNode(nodeId);
+    final rows = await _documentRowsForNode(nodeId);
+    return [for (final row in rows) _toDocument(row)];
+  });
+
+  /// Whether the node has at least one supporting document (no payload load).
+  Future<bool> nodeHasDocuments(String nodeId) => _run(() async {
+    await _requireNode(nodeId);
+    final rows =
+        await (_db.select(_db.nodeDocuments)
+              ..where((doc) => doc.nodeId.equals(nodeId))
+              ..limit(1))
+            .get();
+    return rows.isNotEmpty;
+  });
+
+  /// Replaces the document set for a goods item. Returns relative paths that
+  /// were removed and should be deleted from disk by the caller.
+  Future<List<String>> syncNodeDocuments(
+    String nodeId, {
+    required List<NodeDocumentWrite> documents,
+  }) => _run(() async {
+    final node = await _requireActiveItem(nodeId);
+    if (InventorySpace.parse(node.space) != InventorySpace.goods) {
+      throw const InventoryException(InventoryErrorCode.requiresItem);
+    }
+    final inventoryId = node.inventoryId;
+    final existing = await _documentRowsForNode(nodeId);
+    final keepIds = <String>{
+      for (final doc in documents)
+        if (doc.existingId != null) doc.existingId!,
+    };
+    final removedPaths = <String>[];
+    for (final row in existing) {
+      if (!keepIds.contains(row.id)) {
+        removedPaths.add(row.relPath);
+        await (_db.delete(
+          _db.nodeDocuments,
+        )..where((doc) => doc.id.equals(row.id))).go();
+      }
+    }
+    final existingById = {for (final row in existing) row.id: row};
+    final now = _timestamp();
+    for (var i = 0; i < documents.length; i++) {
+      final spec = documents[i];
+      final existingId = spec.existingId;
+      if (existingId != null) {
+        final row = existingById[existingId];
+        if (row == null) {
+          throw const InventoryException(InventoryErrorCode.nodeNotFound);
+        }
+        if (row.sortIndex != i) {
+          await (_db.update(
+            _db.nodeDocuments,
+          )..where((doc) => doc.id.equals(existingId))).write(
+            NodeDocumentsCompanion(sortIndex: Value(i)),
+          );
+        }
+        continue;
+      }
+      await _db
+          .into(_db.nodeDocuments)
+          .insert(
+            NodeDocumentsCompanion.insert(
+              id: _generateId(),
+              inventoryId: inventoryId,
+              nodeId: nodeId,
+              displayName: spec.displayName.trim(),
+              relPath: spec.relPath,
+              mimeType: spec.mimeType,
+              byteSize: spec.byteSize,
+              sortIndex: Value(i),
+              createdAt: now,
+            ),
+          );
+    }
+    return removedPaths;
+  });
+
+  Future<List<NodeDocumentRow>> _documentRowsForNode(String nodeId) {
+    return (_db.select(_db.nodeDocuments)
+          ..where((doc) => doc.nodeId.equals(nodeId))
+          ..orderBy([
+            (doc) => OrderingTerm(
+              expression: doc.sortIndex,
+              mode: OrderingMode.asc,
+            ),
+            (doc) => OrderingTerm(expression: doc.createdAt),
+          ]))
+        .get();
+  }
+
+  static NodeDocument _toDocument(NodeDocumentRow row) {
+    return NodeDocument(
+      id: row.id,
+      nodeId: row.nodeId,
+      displayName: row.displayName,
+      relPath: row.relPath,
+      mimeType: row.mimeType,
+      byteSize: row.byteSize,
+      sortIndex: row.sortIndex,
+      createdAt: _parseDate(row.createdAt),
+    );
+  }
 
   // Transaction and error boundary.
 
@@ -1062,21 +1886,8 @@ LIMIT ?
 
   String _timestamp() => _clock().toUtc().toIso8601String();
 
-  static List<OrderClauseGenerator<$NodesTable>> get _byName => [
-    (node) => OrderingTerm.asc(node.name),
-    (node) => OrderingTerm.asc(node.id),
-  ];
-
-  /// Tree siblings: all biens (simple + contenant), then locations, then name.
-  /// Keeps item containers with the goods group so a sibling location (e.g.
-  /// Garde-robe) cannot intercalate between a parent and its biens.
-  static List<OrderClauseGenerator<$NodesTable>> get _byTreeDisplay => [
-    (node) => OrderingTerm(
-      expression: CustomExpression<int>(
-        "CASE WHEN node_type = 'location' THEN 1 ELSE 0 END",
-      ),
-    ),
-    (node) => OrderingTerm.asc(node.name),
+  static List<OrderClauseGenerator<$NodesTable>> get _bySiblingOrder => [
+    (node) => OrderingTerm.asc(node.siblingOrder),
     (node) => OrderingTerm.asc(node.id),
   ];
 
@@ -1090,6 +1901,7 @@ LIMIT ?
     final type = _nodeType(node);
     final space = InventorySpace.parse(node.space);
     final isStockProduct = space == InventorySpace.stock && type == NodeType.item;
+    final isToBuyNeed = space == InventorySpace.toBuy && type == NodeType.item;
     final carriesQuantity =
         ((space == InventorySpace.goods || space == InventorySpace.toBuy) &&
             type.isItem) ||
@@ -1112,6 +1924,29 @@ LIMIT ?
       stockUnit: isStockProduct ? node.stockUnit : null,
       unitCostCents: null,
       stockReference: isStockProduct ? node.stockReference : null,
+      desiredQuantity: isToBuyNeed ? node.desiredQuantity : null,
+      targetPriceCents: isToBuyNeed ? node.targetPriceCents : null,
+      siblingOrder: node.siblingOrder,
+      showAdvanced: node.showAdvanced,
+      barcodeRef: space == InventorySpace.goods && type.isItem
+          ? node.barcodeRef
+          : null,
+      purchaseDate: space == InventorySpace.goods && type.isItem
+          ? node.purchaseDate
+          : null,
+      purchasePriceCents: space == InventorySpace.goods && type.isItem
+          ? node.purchasePriceCents
+          : null,
+      purchasePlace: space == InventorySpace.goods && type.isItem
+          ? node.purchasePlace
+          : null,
+      objective: space == InventorySpace.goods && type.isItem
+          ? ItemObjective.parse(node.objective)
+          : ItemObjective.none,
+      photoRelPath: space == InventorySpace.goods && type.isItem
+          ? node.photoRelPath
+          : null,
+      iconKey: node.iconKey,
       status: _parse(
         NodeStatus.values,
         (status) => status.storageValue,
@@ -1130,6 +1965,39 @@ LIMIT ?
       createdAt: _parseDate(node.createdAt),
       updatedAt: _parseDate(node.updatedAt),
     );
+  }
+
+  /// Advanced section applies to goods items/containers, stock products and
+  /// to-buy needs — not to locations or organisational containers.
+  static bool _supportsAdvancedSection({
+    required InventorySpace space,
+    required NodeType type,
+  }) {
+    if (type == NodeType.location) return false;
+    if (space == InventorySpace.goods) return type.isItem;
+    return type == NodeType.item;
+  }
+
+  static void _validateGoodsAdvanced({
+    String? purchaseDate,
+    int? purchasePriceCents,
+  }) {
+    if (purchasePriceCents != null && purchasePriceCents < 0) {
+      throw const InventoryException(InventoryErrorCode.invalidFinancialValue);
+    }
+    if (purchaseDate != null) {
+      final match = RegExp(r'^(\d{4})-(\d{2})-(\d{2})$').firstMatch(purchaseDate);
+      if (match == null) {
+        throw const InventoryException(InventoryErrorCode.invalidStoredData);
+      }
+      final year = int.parse(match.group(1)!);
+      final month = int.parse(match.group(2)!);
+      final day = int.parse(match.group(3)!);
+      final parsed = DateTime(year, month, day);
+      if (parsed.year != year || parsed.month != month || parsed.day != day) {
+        throw const InventoryException(InventoryErrorCode.invalidStoredData);
+      }
+    }
   }
 
   static NodeValuation? _toValuation(Node node) => _valuationFromColumns(

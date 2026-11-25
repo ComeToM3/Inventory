@@ -1,4 +1,5 @@
 import '../core/domain/inventory_models.dart';
+import '../core/domain/purchase_models.dart';
 import '../core/domain/stock_quantity.dart';
 
 abstract final class AppStrings {
@@ -10,14 +11,121 @@ abstract final class AppStrings {
   static const search = 'Recherche';
   static const history = 'Historique';
   static const settings = 'Paramètres';
+  static const advancedInformation = 'Informations avancées';
+  static const showAdvancedByDefault =
+      'Afficher les informations avancées par défaut';
+  static const showAdvancedByDefaultHelp =
+      'S’applique uniquement aux nouvelles fiches. '
+      'Chaque fiche conserve ensuite son propre état.';
+  static const barcodeOrReference = 'Référence ou code-barres';
+  static const barcodeOrReferenceHint = 'Facultatif';
+  static const purchaseDate = 'Date d’achat';
+  static const purchaseDateHint = 'Facultatif';
+  static const purchaseDateInvalid = 'Indiquez une date valide.';
+  static const clearPurchaseDate = 'Effacer la date';
+  static const purchasePrice = 'Prix payé';
+  static const purchasePriceHint =
+      'Facultatif — n’affecte pas la valorisation du bien';
+  static const purchasePlace = 'Lieu ou vendeur';
+  static const purchasePlaceHint = 'Facultatif';
+  static const expandBranch = 'Afficher le contenu';
+  static const collapseBranch = 'Masquer le contenu';
+  static const itemObjective = 'Objectif';
+  static const objectiveNone = 'Aucun';
+  static const objectiveSell = 'Vendre';
+  static const objectiveRepair = 'Réparer';
+
+  static String labelForObjective(ItemObjective objective) =>
+      switch (objective) {
+        ItemObjective.none => objectiveNone,
+        ItemObjective.sell => objectiveSell,
+        ItemObjective.repair => objectiveRepair,
+      };
+
+  static const mainPhoto = 'Photo principale';
+  static const photoAndDocument = 'Photo et document';
+  static const addPhotoGallery = 'Galerie';
+  static const addPhotoCamera = 'Caméra';
+  static const replacePhoto = 'Remplacer';
+  static const removePhoto = 'Supprimer la photo';
+  static const removePhotoConfirmTitle = 'Supprimer la photo ?';
+  static const removePhotoConfirmBody =
+      'La suppression sera appliquée à l’enregistrement de la fiche.';
+  static const photoProcessing = 'Optimisation de la photo…';
+  static const photoError = 'Impossible de traiter cette photo.';
+  static const photoPermissionDenied = 'Permission refusée pour la photo.';
+
+  static const supportingDocuments = 'Documents justificatifs';
+  static const supportingDocumentsEmpty = 'Aucun document pour le moment.';
+  static const addDocument = 'Ajouter un document';
+  static const documentAction = 'Reçus';
+  static const removeDocument = 'Retirer';
+  static const removeDocumentConfirmTitle = 'Retirer ce document ?';
+  static const removeDocumentConfirmBody =
+      'Le retrait sera appliqué à l’enregistrement de la fiche.';
+  static const documentProcessing = 'Ajout du document…';
+  static const documentError = 'Impossible d’ajouter ce document.';
+  static const documentTooLarge = 'Ce fichier dépasse la limite de 15 Mo.';
+  static const documentUnsupportedType =
+      'Format non pris en charge. Utilisez PDF, JPEG, PNG ou WebP.';
+  static const documentOpenError =
+      'Aucune application compatible n’est disponible pour ouvrir ce fichier.';
+  static const documentMissing = 'Ce document n’est plus disponible.';
+
+  static const iconPickerTitle = 'Icône';
+  static const iconPickerSearch = 'Rechercher une icône';
+  static const iconAutomaticGeneric = 'Automatique (générique)';
+  static const iconAutomaticHelp =
+      'Suit le nom tant qu’aucune icône n’est choisie manuellement.';
+  static const chooseIcon = 'Choisir l’icône';
+  static const iconManual = 'Icône manuelle';
+
+  static String iconAutomaticNamed(String key) => 'Automatique ($key)';
+
+  static String documentSizeLabel(int bytes) {
+    if (bytes < 1024) return '$bytes o';
+    if (bytes < 1024 * 1024) {
+      return '${(bytes / 1024).toStringAsFixed(0)} Ko';
+    }
+    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} Mo';
+  }
   static const inventoryEmpty = 'Aucun emplacement pour le moment.';
   static const stockEmpty = 'Aucun produit en stock pour le moment.';
   static const toBuyEmpty = 'Aucun besoin à acheter pour le moment.';
-  static const spaceComingSoon =
-      'Les actions de cet espace seront disponibles prochainement.';
+  static const needType = 'Article à acheter';
+  static const newNeedTitle = 'Nouvel article à acheter';
+  static const desiredQuantity = 'Quantité souhaitée';
+  static const remainingQuantity = 'Quantité restante';
+  static const targetPrice = 'Prix cible';
+  static const paidPrice = 'Prix payé';
+  static const purchaseAction = 'Acheté';
+  static const purchaseTitle = 'Confirmer l’achat';
+  static const purchaseSuccess = 'Achat enregistré.';
+  static const purchaseError = 'Impossible d’enregistrer cet achat.';
+  static const abandonNeed = 'Abandonner';
+  static const abandonNeedConfirmTitle = 'Abandonner ce besoin ?';
+  static const abandonNeedConfirmBody =
+      'Il quittera la liste active. Aucun bien ni produit Stock ne sera créé.';
+  static const abandonSuccess = 'Besoin abandonné.';
+  static const purchaseHistoryEmpty = 'Aucun achat ni abandon pour le moment.';
+  static const purchaseDestination = 'Destination';
+  static const destinationGoods = 'Biens';
+  static const destinationStock = 'Stock';
+  static const stockLinkMode = 'Produit Stock';
+  static const stockCreateNew = 'Créer un nouveau produit';
+  static const stockKeepLevel = 'Associer — conserver le niveau';
+  static const stockResetLevel = 'Associer — remettre à 1';
+  static const chooseStockProduct = 'Choisir un produit existant';
+  static const purchaseQuantity = 'Quantité acquise';
+  static const goodsValuationOnPurchase = 'Valorisation du bien';
+  static String labelForPurchaseEvent(PurchaseEventType type) =>
+      switch (type) {
+        PurchaseEventType.acquire => 'Achat',
+        PurchaseEventType.abandon => 'Abandon',
+      };
   static const stockQuantity = 'Quantité de référence';
-  static const stockReferenceHint = 'Facultatif — total conceptuel (ex. 10)';
   static const stockReferenceInvalid = 'Indiquez un entier ≥ 1, ou laissez vide.';
+  static const stockRemainingLevel = 'Niveau restant';
   static const stockMovements = 'Historique';
   static const stockHistoryEmpty = 'Aucun changement pour le moment.';
   static const stockProductType = 'Produit';
@@ -51,6 +159,10 @@ abstract final class AppStrings {
   static const locationType = 'Emplacement';
   static const itemType = 'Bien simple';
   static const itemContainerType = 'Bien-contenant';
+  /// Unified goods creation entry (UX-01); internal types unchanged.
+  static const goodsItemType = 'Bien';
+  static const goodsItemExample = 'Ex. : Livre, Câble, Armoire, Boîte';
+  static const isContainerLabel = 'Contenant';
   static const add = 'Ajouter';
   static const addRootLocation = 'Ajouter un emplacement';
   static const addRootLocationTooltip = 'Ajouter un emplacement principal';
@@ -60,8 +172,8 @@ abstract final class AppStrings {
   static const createTitle = 'Ajouter';
   static const chooseTypeTitle = 'Choisir le type';
   static const newLocationTitle = 'Nouvel emplacement';
-  static const newItemTitle = 'Nouveau bien simple';
-  static const newItemContainerTitle = 'Nouveau bien-contenant';
+  static const newItemTitle = 'Nouveau bien';
+  static const newItemContainerTitle = 'Nouveau bien';
   static const rootLocation = 'Emplacement principal';
   static const hierarchyPosition = 'Position';
   static const quickAddLocation = 'Créer un emplacement';
@@ -182,8 +294,11 @@ abstract final class AppStrings {
       'Choisissez-en une autre ou réinitialisez les filtres.';
   static const resetFilters = 'Réinitialiser les filtres';
   static const dropToRoot = 'Racine de l’inventaire';
-  static const dragHint = 'Glisser vers un emplacement ou un bien-contenant';
+  static const dragHint =
+      'Ligne d’insertion = ordre. Sur un emplacement / contenant = y déposer.';
   static const moreActions = 'Plus d’actions';
+  static const organizeReorderSuccess = 'Ordre mis à jour.';
+  static const organizeReorderError = 'Impossible de modifier l’ordre.';
   static const withdrawFromInventory = 'Retirer de l’inventaire';
   static const deleteNode = 'Supprimer la fiche';
   static const chooseWithdrawalReason = 'Motif du retrait';
@@ -213,6 +328,8 @@ abstract final class AppStrings {
   static const deleting = 'Suppression…';
   static const deleteSuccess = 'Fiche supprimée définitivement.';
   static const deleteError = 'Impossible de supprimer cette fiche. Réessayez.';
+  static const permanentRootProtected =
+      'L’emplacement Inventaire ne peut pas être supprimé ni déplacé.';
   static const deleteHasChildren =
       'Cet élément contient encore d’autres éléments. '
       'Déplacez ou traitez d’abord son contenu, puis reprenez la suppression.';
@@ -235,12 +352,13 @@ abstract final class AppStrings {
   static const saveInventory = 'Sauvegarder l’inventaire';
   static const backupPrivacyTitle = 'Fichier non chiffré';
   static const backupPrivacyMessage =
-      'La sauvegarde contient l’inventaire complet : emplacements, '
-      'biens simples, biens-contenants, valeurs et historique des retraits. '
-      'Le fichier n’est pas chiffré : toute personne y ayant accès pourrait '
-      'consulter ces informations. Le fournisseur choisi peut aussi copier '
-      'ou synchroniser le fichier. L’empreinte SHA-256 détecte une altération '
-      'accidentelle ; ce n’est ni un chiffrement ni une preuve d’authenticité.';
+      'La sauvegarde contient l’inventaire complet : emplacements, biens, '
+      'stock, besoins, valeurs, historiques, préférences, photos et '
+      'documents associés. Le fichier n’est pas chiffré : toute personne y '
+      'ayant accès pourrait consulter ces informations. Le fournisseur choisi '
+      'peut aussi copier ou synchroniser le fichier. L’empreinte SHA-256 '
+      'détecte une altération accidentelle ; ce n’est ni un chiffrement ni '
+      'une preuve d’authenticité.';
   static const backupContinue = 'Choisir une destination';
   static const backupExporting = 'Préparation de la sauvegarde…';
   static const backupVerified =
@@ -270,6 +388,15 @@ abstract final class AppStrings {
   static const restoreCancelled = 'Restauration annulée.';
   static const restoreRejected =
       'Fichier de sauvegarde invalide ou incompatible. '
+      'L’inventaire actuel n’a pas été modifié.';
+  static const restoreIncompatible =
+      'Fichier incompatible ou non reconnu. '
+      'L’inventaire actuel n’a pas été modifié.';
+  static const restoreCorrupted =
+      'Fichier de sauvegarde corrompu ou incomplet. '
+      'L’inventaire actuel n’a pas été modifié.';
+  static const restoreMediaMissing =
+      'Médias manquants ou incohérents dans la sauvegarde. '
       'L’inventaire actuel n’a pas été modifié.';
   static const restoreFailed =
       'La restauration a échoué. L’inventaire actuel n’a pas été modifié '
@@ -444,9 +571,10 @@ abstract final class AppStrings {
       'le résumé. Le crayon du résumé mène à la modification.';
   static const helpMoveTitle = 'Déplacement';
   static const helpMoveBody =
-      'Appui long sur une ligne, puis glisser vers un emplacement ou un '
-      'bien-contenant. Un bandeau « Racine de l’inventaire » apparaît pour '
-      'les éléments qui peuvent y revenir. Relâchez pour confirmer.';
+      'Appui long, maintenir, glisser, relâcher. Relâchez entre deux lignes '
+      'pour changer l’ordre ; sur un emplacement ou un bien-contenant pour '
+      'changer de parent. Un bandeau « Racine de l’inventaire » apparaît pour '
+      'les éléments qui peuvent y revenir.';
   static const helpManageTitle = 'Gestion';
   static const helpManageBody =
       'Ajoutez depuis le bouton + ou le + d’une ligne. '

@@ -16,7 +16,12 @@ typedef DocumentDestinationPicker =
 typedef DocumentBytesWriter =
     Future<void> Function({required String uri, required List<int> bytes});
 
+typedef DocumentFileWriter =
+    Future<void> Function({required String uri, required String path});
+
 typedef DocumentBytesReader = Future<List<int>?> Function(String uri);
+
+typedef DocumentFileReader = Future<String?> Function(String uri);
 
 /// Prepares a verified temporary backup, then copies it to a user destination.
 class BackupExporter {
@@ -35,8 +40,10 @@ class BackupExporter {
 
   Future<BackupExportResult> export({
     required DocumentDestinationPicker pickDestination,
-    required DocumentBytesWriter writeDestination,
+    DocumentBytesWriter? writeDestination,
+    DocumentFileWriter? writeDestinationFile,
     DocumentBytesReader? readDestination,
+    DocumentFileReader? readDestinationFile,
   }) async {
     File? tempFile;
     try {
@@ -49,18 +56,23 @@ class BackupExporter {
         return const BackupExportResult(outcome: BackupExportOutcome.cancelled);
       }
 
-      final snapshot = await _reader.read();
-      final bytes = BackupCodec.encodeFile(
-        snapshot,
-        createdAtUtc: _clock().toUtc(),
-      );
-      BackupCodec.decodeAndVerify(bytes);
-
-      tempFile = await _writeTemp(bytes);
+      tempFile = await buildTempFile();
       BackupCodec.decodeAndVerify(await tempFile.readAsBytes());
 
       try {
-        await writeDestination(uri: uri, bytes: bytes);
+        if (writeDestinationFile != null) {
+          await writeDestinationFile(uri: uri, path: tempFile.path);
+        } else if (writeDestination != null) {
+          await writeDestination(
+            uri: uri,
+            bytes: await tempFile.readAsBytes(),
+          );
+        } else {
+          return const BackupExportResult(
+            outcome: BackupExportOutcome.failed,
+            errorCode: BackupErrorCode.writeFailed,
+          );
+        }
       } catch (_) {
         return const BackupExportResult(
           outcome: BackupExportOutcome.failed,
@@ -68,7 +80,7 @@ class BackupExporter {
         );
       }
 
-      if (readDestination == null) {
+      if (readDestinationFile == null && readDestination == null) {
         return BackupExportResult(
           outcome: BackupExportOutcome.writtenUnverified,
           displayName: suggestedName,
@@ -76,20 +88,42 @@ class BackupExporter {
       }
 
       try {
-        final remote = await readDestination(uri);
-        if (remote == null) {
-          return BackupExportResult(
-            outcome: BackupExportOutcome.writtenUnverified,
-            displayName: suggestedName,
-          );
+        if (readDestinationFile != null) {
+          final remotePath = await readDestinationFile(uri);
+          if (remotePath == null) {
+            return BackupExportResult(
+              outcome: BackupExportOutcome.writtenUnverified,
+              displayName: suggestedName,
+            );
+          }
+          final remoteFile = File(remotePath);
+          final localBytes = await tempFile.readAsBytes();
+          final remoteBytes = await remoteFile.readAsBytes();
+          await _deleteQuietly(remoteFile);
+          if (!_sameBytes(remoteBytes, localBytes)) {
+            return const BackupExportResult(
+              outcome: BackupExportOutcome.failed,
+              errorCode: BackupErrorCode.verificationFailed,
+            );
+          }
+          BackupCodec.decodeAndVerify(remoteBytes);
+        } else {
+          final remote = await readDestination!(uri);
+          if (remote == null) {
+            return BackupExportResult(
+              outcome: BackupExportOutcome.writtenUnverified,
+              displayName: suggestedName,
+            );
+          }
+          final localBytes = await tempFile.readAsBytes();
+          if (!_sameBytes(remote, localBytes)) {
+            return const BackupExportResult(
+              outcome: BackupExportOutcome.failed,
+              errorCode: BackupErrorCode.verificationFailed,
+            );
+          }
+          BackupCodec.decodeAndVerify(remote);
         }
-        if (!_sameBytes(remote, bytes)) {
-          return const BackupExportResult(
-            outcome: BackupExportOutcome.failed,
-            errorCode: BackupErrorCode.verificationFailed,
-          );
-        }
-        BackupCodec.decodeAndVerify(remote);
         return BackupExportResult(
           outcome: BackupExportOutcome.verified,
           displayName: suggestedName,
@@ -122,13 +156,56 @@ class BackupExporter {
 
   /// Builds framed bytes without touching a destination (tests / prep).
   Future<List<int>> buildFileBytes() async {
-    final snapshot = await _reader.read();
-    final bytes = BackupCodec.encodeFile(
+    final packed = await _reader.readWithMediaFiles();
+    if (packed.media.isEmpty) {
+      final bytes = BackupCodec.encodeFile(
+        packed.snapshot,
+        createdAtUtc: _clock().toUtc(),
+        media: const [],
+      );
+      BackupCodec.decodeAndVerify(bytes);
+      return bytes;
+    }
+    final temp = await buildTempFileFrom(packed.snapshot, packed.media);
+    try {
+      final bytes = await temp.readAsBytes();
+      BackupCodec.decodeAndVerify(bytes);
+      return bytes;
+    } finally {
+      await _deleteQuietly(temp);
+    }
+  }
+
+  Future<File> buildTempFile() async {
+    final packed = await _reader.readWithMediaFiles();
+    return buildTempFileFrom(packed.snapshot, packed.media);
+  }
+
+  Future<File> buildTempFileFrom(
+    BackupSnapshot snapshot,
+    List<({BackupMediaManifestEntry entry, File file})> media,
+  ) async {
+    final directory = await _temporaryDirectory();
+    final file = File(
+      '${directory.path}${Platform.pathSeparator}'
+      'inventory_export_${_clock().microsecondsSinceEpoch}.$backupFileExtension',
+    );
+    if (media.isEmpty) {
+      final bytes = BackupCodec.encodeFile(
+        snapshot,
+        createdAtUtc: _clock().toUtc(),
+        media: const [],
+      );
+      await file.writeAsBytes(bytes, flush: true);
+      return file;
+    }
+    await BackupCodec.encodeToFile(
+      file,
       snapshot,
       createdAtUtc: _clock().toUtc(),
+      media: media,
     );
-    BackupCodec.decodeAndVerify(bytes);
-    return bytes;
+    return file;
   }
 
   static Future<void> cleanupOrphanTemps({
@@ -139,7 +216,8 @@ class BackupExporter {
       await for (final entity in directory.list()) {
         if (entity is! File) continue;
         final name = entity.uri.pathSegments.last;
-        if (name.startsWith('inventory_export_') &&
+        if ((name.startsWith('inventory_export_') ||
+                name.startsWith('inventory_import_')) &&
             name.endsWith('.$backupFileExtension')) {
           await _deleteQuietly(entity);
         }
@@ -155,16 +233,6 @@ class BackupExporter {
         '${utc.year}${two(utc.month)}${two(utc.day)}-'
         '${two(utc.hour)}${two(utc.minute)}${two(utc.second)}';
     return 'inventory-$stamp.$backupFileExtension';
-  }
-
-  Future<File> _writeTemp(List<int> bytes) async {
-    final directory = await _temporaryDirectory();
-    final file = File(
-      '${directory.path}${Platform.pathSeparator}'
-      'inventory_export_${_clock().microsecondsSinceEpoch}.$backupFileExtension',
-    );
-    await file.writeAsBytes(bytes, flush: true);
-    return file;
   }
 
   static bool _sameBytes(List<int> left, List<int> right) {

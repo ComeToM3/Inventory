@@ -160,7 +160,7 @@ void main() {
       );
       expect(await fingerprint(target.database), before);
       final journal = await BackupRestorer.currentJournal(target.database);
-      expect(journal?.status, RestorationJournalStatus.pending.name);
+      expect(journal?.status, RestorationJournalStatus.pending.storageValue);
 
       final recovery = await RestorationRecovery(target.database).inspect();
       expect(recovery?.messageKind, RestorationRecoveryMessage.notApplied);
@@ -197,7 +197,7 @@ void main() {
       expect(await fingerprint(target.database), before);
       expect(
         (await BackupRestorer.currentJournal(target.database))?.status,
-        RestorationJournalStatus.pending.name,
+        RestorationJournalStatus.pending.storageValue,
       );
     } finally {
       await source.database.close();

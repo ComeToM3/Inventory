@@ -875,30 +875,44 @@ void main() {
   });
 
   test(
-    'DEV-33 trie les biens (simple + contenant) avant les sous-emplacements',
+    'M3.1 conserve l’ordre manuel des frères (création puis réordonnancement)',
     () async {
       final home = await create('Maison', NodeType.location);
       final room = await create('Chambre', NodeType.location, parent: home);
-      await create('Garde-robe', NodeType.location, parent: room);
-      await create(
+      final wardrobe =
+          await create('Garde-robe', NodeType.location, parent: room);
+      final desk = await create(
         'Bureau',
         NodeType.itemContainer,
         parent: room,
         valuation: const FinancialValuation(12000),
       );
-      await create(
+      final computer = await create(
         'Ordinateur principal',
         NodeType.item,
         parent: room,
         valuation: const FinancialValuation(100000),
       );
-      await create(
+      final keyboard = await create(
         'Clavier',
         NodeType.item,
         parent: room,
         valuation: const FinancialValuation(500),
       );
 
+      // New siblings append in creation order.
+      expect(_names(await engine.getChildren(room.id)), [
+        'Garde-robe',
+        'Bureau',
+        'Ordinateur principal',
+        'Clavier',
+      ]);
+
+      await engine.reorderSiblings(
+        space: InventorySpace.goods,
+        parentId: room.id,
+        orderedIds: [desk.id, keyboard.id, computer.id, wardrobe.id],
+      );
       expect(_names(await engine.getChildren(room.id)), [
         'Bureau',
         'Clavier',

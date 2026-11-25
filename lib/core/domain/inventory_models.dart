@@ -39,7 +39,9 @@ enum NodeType {
 
 enum NodeStatus {
   active('active'),
-  withdrawn('withdrawn');
+  withdrawn('withdrawn'),
+  acquired('acquired'),
+  abandoned('abandoned');
 
   const NodeStatus(this.storageValue);
 
@@ -55,6 +57,27 @@ enum WithdrawalReason {
   const WithdrawalReason(this.storageValue);
 
   final String storageValue;
+}
+
+/// Active objective on a goods item (not a withdrawal state or task).
+enum ItemObjective {
+  none('none'),
+  sell('sell'),
+  repair('repair');
+
+  const ItemObjective(this.storageValue);
+
+  final String storageValue;
+
+  static ItemObjective parse(String raw) {
+    final normalized = raw.trim();
+    // Absent / blank must never become sell or repair.
+    if (normalized.isEmpty) return ItemObjective.none;
+    for (final value in ItemObjective.values) {
+      if (value.storageValue == normalized) return value;
+    }
+    throw const InventoryException(InventoryErrorCode.invalidStoredData);
+  }
 }
 
 sealed class NodeValuation {
@@ -113,6 +136,17 @@ class InventoryNode {
     this.stockUnit,
     this.unitCostCents,
     this.stockReference,
+    this.desiredQuantity,
+    this.targetPriceCents,
+    this.siblingOrder = 0,
+    this.showAdvanced = false,
+    this.barcodeRef,
+    this.purchaseDate,
+    this.purchasePriceCents,
+    this.purchasePlace,
+    this.objective = ItemObjective.none,
+    this.photoRelPath,
+    this.iconKey,
     required this.status,
     required this.withdrawalReason,
     required this.withdrawnAt,
@@ -127,10 +161,10 @@ class InventoryNode {
   final NodeType type;
   final String? condition;
 
-  /// Goods items: piece count (≥ 1). Stock products: level storage (0/1/2/4).
+  /// Goods: piece count (≥ 1). Stock: level 0/1/2/4. To-buy: remaining qty.
   final int? quantity;
 
-  /// Goods valuation only; always null for Stock products.
+  /// Goods valuation only; always null for Stock / to-buy products.
   final NodeValuation? valuation;
 
   /// Internal Stock sentinel / legacy unit label; not shown in M2.1-C UI.
@@ -141,6 +175,39 @@ class InventoryNode {
 
   /// Optional conceptual total (e.g. 10); not shown in the tree.
   final int? stockReference;
+
+  /// To-buy: original / wished quantity (≥ remaining while active).
+  final int? desiredQuantity;
+
+  /// To-buy: optional target unit price in CAD cents.
+  final int? targetPriceCents;
+
+  /// Manual order among active siblings (same parent).
+  final int siblingOrder;
+
+  /// Per-fiche advanced section expansion (snapshot at creation, then local).
+  final bool showAdvanced;
+
+  /// Optional barcode / reference (goods items only).
+  final String? barcodeRef;
+
+  /// Optional purchase date `yyyy-MM-dd` (goods items only).
+  final String? purchaseDate;
+
+  /// Optional amount paid in CAD cents (independent of valuation).
+  final int? purchasePriceCents;
+
+  /// Optional seller / place of purchase.
+  final String? purchasePlace;
+
+  /// Goods objective; always [ItemObjective.none] outside goods items.
+  final ItemObjective objective;
+
+  /// Relative path to optimized main photo WebP; null when absent.
+  final String? photoRelPath;
+
+  /// Manual icon catalog key; null means automatic resolution from [name].
+  final String? iconKey;
   final NodeStatus status;
   final WithdrawalReason? withdrawalReason;
   final DateTime? withdrawnAt;
@@ -152,10 +219,20 @@ class InventoryNode {
   bool get isStockProduct =>
       space == InventorySpace.stock && type == NodeType.item;
 
+  bool get isToBuyNeed =>
+      space == InventorySpace.toBuy && type == NodeType.item;
+
   StockLevel? get stockLevel =>
       isStockProduct && quantity != null
           ? StockLevel.fromStoredQuarters(quantity!)
           : null;
+
+  bool get isPartiallyAcquired =>
+      isToBuyNeed &&
+      status == NodeStatus.active &&
+      desiredQuantity != null &&
+      quantity != null &&
+      quantity! < desiredQuantity!;
 
   /// Informative lot total (`quantity × unit amount`); null when the node is
   /// not financially valued as a Biens item.
@@ -176,6 +253,47 @@ class InventoryNodeDetails {
 
   final InventoryNode node;
   final List<InventoryNode> path;
+}
+
+/// Supporting document attached to a goods item (file on disk, metadata in DB).
+class NodeDocument {
+  const NodeDocument({
+    required this.id,
+    required this.nodeId,
+    required this.displayName,
+    required this.relPath,
+    required this.mimeType,
+    required this.byteSize,
+    required this.sortIndex,
+    required this.createdAt,
+  });
+
+  final String id;
+  final String nodeId;
+  final String displayName;
+  final String relPath;
+  final String mimeType;
+  final int byteSize;
+  final int sortIndex;
+  final DateTime createdAt;
+}
+
+/// Spec used when syncing documents after a form save.
+class NodeDocumentWrite {
+  const NodeDocumentWrite({
+    this.existingId,
+    required this.displayName,
+    required this.relPath,
+    required this.mimeType,
+    required this.byteSize,
+  });
+
+  /// Non-null when keeping an already persisted document.
+  final String? existingId;
+  final String displayName;
+  final String relPath;
+  final String mimeType;
+  final int byteSize;
 }
 
 class InventorySearchCriteria {

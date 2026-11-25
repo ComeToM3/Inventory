@@ -8,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:inventory/core/backup/backup_codec.dart';
 import 'package:inventory/core/backup/backup_contract.dart';
 import 'package:inventory/core/backup/backup_exporter.dart';
+import 'package:inventory/core/backup/backup_payload.dart';
 import 'package:inventory/core/backup/backup_snapshot_reader.dart';
 import 'package:inventory/core/database/inventory_database.dart';
 import 'package:inventory/core/domain/inventory_engine.dart';
@@ -86,20 +87,25 @@ void main() {
       expect(decoded.header.formatId, backupFormatId);
       expect(decoded.header.formatVersion, backupFormatVersion);
       expect(decoded.header.dataSchemaVersion, backupDataSchemaVersion);
-      expect(decoded.header.payloadLength, decoded.payloadUtf8.length);
+      expect(decoded.header.payloadLength, decoded.payloadBytes.length);
       expect(
         decoded.header.payloadSha256,
-        sha256.convert(decoded.payloadUtf8).toString(),
+        sha256.convert(decoded.payloadBytes).toString(),
       );
 
       final payload =
-          jsonDecode(utf8.decode(decoded.payloadUtf8)) as Map<String, dynamic>;
-      expect(payload.keys.toList(), [
+          jsonDecode(utf8.decode(decoded.jsonUtf8)) as Map<String, dynamic>;
+      expect(payload.keys.toSet(), {
         'inventory',
         'nodes',
         'categories',
         'node_categories',
-      ]);
+        'stock_movements',
+        'purchase_events',
+        'app_preferences',
+        'node_documents',
+        'media_files',
+      });
       final nodes = (payload['nodes'] as List).cast<Map<String, dynamic>>();
       // Ordered by primary key id (creation sequence with sequential test ids).
       expect(nodes.map((node) => node['name']), [
@@ -167,18 +173,23 @@ void main() {
       final bytes = await fixture.exporter.buildFileBytes();
       final file = BackupCodec.decodeAndVerify(bytes);
       final payload =
-          jsonDecode(utf8.decode(file.payloadUtf8)) as Map<String, dynamic>;
+          jsonDecode(utf8.decode(file.jsonUtf8)) as Map<String, dynamic>;
       expect(payload['nodes'], isEmpty);
       expect(payload['categories'], isEmpty);
       expect(payload['node_categories'], isEmpty);
+      expect(payload['media_files'], isEmpty);
       expect((payload['inventory'] as Map)['singleton_key'], 1);
 
-      final lines = utf8.decode(bytes).split('\n');
-      final header = jsonDecode(lines[1]) as Map<String, dynamic>;
+      final headerEnd = bytes.indexOf(0x0A, utf8.encode('INVENTORY-BACKUP\n').length);
+      final header = jsonDecode(
+        utf8.decode(bytes.sublist(utf8.encode('INVENTORY-BACKUP\n').length, headerEnd)),
+      ) as Map<String, dynamic>;
       header['format_version'] = 99;
-      final broken = utf8.encode(
-        '${lines[0]}\n${jsonEncode(header)}\n${lines.sublist(2).join('\n')}',
-      );
+      final broken = [
+        ...utf8.encode('INVENTORY-BACKUP\n'),
+        ...utf8.encode('${jsonEncode(header)}\n'),
+        ...bytes.sublist(headerEnd + 1),
+      ];
       expect(
         () => BackupCodec.decodeAndVerify(broken),
         throwsA(
@@ -239,6 +250,112 @@ void main() {
       expect(failedWrite.outcome, BackupExportOutcome.failed);
       expect(failedWrite.errorCode, BackupErrorCode.writeFailed);
       expect(await _tableFingerprint(fixture.database), before);
+    } finally {
+      await fixture.database.close();
+    }
+  });
+
+  test('inclut et vérifie les médias ; refuse manifeste incohérent', () async {
+    final photoBytes = utf8.encode('fake-webp-bytes');
+    final docBytes = utf8.encode('%PDF-1.4 fake');
+    final photoEntry = BackupMediaManifestEntry(
+      relPath: 'photos/demo.webp',
+      byteSize: photoBytes.length,
+      sha256: sha256.convert(photoBytes).toString(),
+    );
+    final docEntry = BackupMediaManifestEntry(
+      relPath: 'documents/demo.pdf',
+      byteSize: docBytes.length,
+      sha256: sha256.convert(docBytes).toString(),
+    );
+    final fixture = await openFixture();
+    try {
+      final root = await fixture.engine.createNode(
+        name: 'Maison',
+        type: NodeType.location,
+      );
+      final item = await fixture.engine.createNode(
+        name: 'Bien photo',
+        type: NodeType.item,
+        parentId: root.id,
+      );
+      final base = await BackupSnapshotReader(fixture.database).read();
+      final nodes = [
+        for (final node in base.nodes)
+          if (node['id'] == item.id)
+            {...node, 'photo_rel_path': photoEntry.relPath}
+          else
+            node,
+      ];
+      final snapshot = BackupSnapshot(
+        inventory: base.inventory,
+        nodes: nodes,
+        categories: const [],
+        nodeCategories: const [],
+        nodeDocuments: [
+          {
+            'id': '00000000-0000-4000-8000-000000000099',
+            'inventory_id': base.inventory['id'],
+            'node_id': item.id,
+            'display_name': 'facture.pdf',
+            'rel_path': docEntry.relPath,
+            'mime_type': 'application/pdf',
+            'byte_size': docBytes.length,
+            'sort_index': 0,
+            'created_at': fixedNow.toIso8601String(),
+          },
+        ],
+        mediaFiles: [photoEntry, docEntry],
+      );
+      final bytes = BackupCodec.encodeFile(
+        snapshot,
+        createdAtUtc: fixedNow,
+        media: [
+          (entry: photoEntry, bytes: photoBytes),
+          (entry: docEntry, bytes: docBytes),
+        ],
+      );
+      final decoded = BackupCodec.decodeAndVerify(bytes);
+      expect(decoded.mediaBlobs.length, 2);
+      expect(decoded.mediaBlobs[0], photoBytes);
+      final parsed = BackupPayload.decodeBytes(bytes);
+      expect(parsed.mediaFiles.length, 2);
+      expect(parsed.nodes.singleWhere((n) => n['id'] == item.id)['photo_rel_path'],
+          photoEntry.relPath);
+
+      final truncated = bytes.sublist(0, bytes.length - 3);
+      expect(
+        () => BackupCodec.decodeAndVerify(truncated),
+        throwsA(
+          isA<BackupException>().having(
+            (e) => e.code,
+            'code',
+            BackupErrorCode.lengthMismatch,
+          ),
+        ),
+      );
+
+      final missingMedia = BackupSnapshot(
+        inventory: snapshot.inventory,
+        nodes: snapshot.nodes,
+        categories: const [],
+        nodeCategories: const [],
+        nodeDocuments: snapshot.nodeDocuments,
+        mediaFiles: [photoEntry],
+      );
+      expect(
+        () => BackupPayload.validateBusinessRules(
+          missingMedia,
+          requireMedia: true,
+        ),
+        throwsA(
+          isA<BackupException>().having(
+            (e) => e.code,
+            'code',
+            BackupErrorCode.mediaMissing,
+          ),
+        ),
+      );
     } finally {
       await fixture.database.close();
     }

@@ -10,57 +10,65 @@ import 'package:inventory/core/domain/inventory_engine.dart';
 import 'package:inventory/core/domain/inventory_models.dart';
 
 void main() {
-  testWidgets('le FAB propose les trois types puis ouvre la fiche de création', (
-    tester,
-  ) async {
-    final database = InventoryDatabase(NativeDatabase.memory());
-    final engine = InventoryEngine(database);
-    await engine.createNode(name: 'Maison', type: NodeType.location);
+  testWidgets(
+    'le FAB propose Emplacement et Bien puis ouvre la fiche de création',
+    (tester) async {
+      final database = InventoryDatabase(NativeDatabase.memory());
+      final engine = InventoryEngine(database);
+      await engine.createNode(name: 'Maison', type: NodeType.location);
 
-    try {
-      await tester.pumpWidget(
-        MaterialApp(
-          home: MainNavigationScreen(
-            engine: engine,
-            database: database,
+      try {
+        await tester.pumpWidget(
+          MaterialApp(
+            home: MainNavigationScreen(
+              engine: engine,
+              database: database,
+            ),
           ),
-        ),
-      );
-      await tester.pumpAndSettle();
+        );
+        await tester.pumpAndSettle();
 
-      await tester.tap(find.byTooltip(AppStrings.add));
-      await tester.pumpAndSettle();
-      expect(find.text(AppStrings.locationType), findsOneWidget);
-      expect(find.text(AppStrings.itemType), findsOneWidget);
-      expect(find.text(AppStrings.itemContainerType), findsOneWidget);
+        await tester.tap(find.byTooltip(AppStrings.add));
+        await tester.pumpAndSettle();
+        expect(find.text(AppStrings.locationType), findsOneWidget);
+        expect(find.text(AppStrings.goodsItemType), findsOneWidget);
+        expect(find.text(AppStrings.itemContainerType), findsNothing);
 
-      await tester.tap(find.text(AppStrings.locationType));
-      await tester.pumpAndSettle();
-      expect(find.text(AppStrings.hierarchyPosition), findsOneWidget);
-      // Root option available for locations (dropdown may also show chooseParent hint).
-      expect(find.text(AppStrings.rootLocation), findsOneWidget);
-      expect(
-        (await engine.getRootLocations()).map((n) => n.name),
-        ['Maison'],
-      );
+        await tester.tap(find.text(AppStrings.locationType));
+        await tester.pumpAndSettle();
+        expect(find.text(AppStrings.hierarchyPosition), findsOneWidget);
+        expect(find.text(AppStrings.rootLocation), findsOneWidget);
+        expect(
+          (await engine.getRootLocations()).map((n) => n.name),
+          ['Maison'],
+        );
 
-      await tester.tap(find.text(AppStrings.cancel));
-      await tester.pumpAndSettle();
-      await tester.tap(find.byTooltip(AppStrings.add));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text(AppStrings.itemType));
-      await tester.pumpAndSettle();
-      expect(find.text(AppStrings.chooseParent), findsOneWidget);
-      expect(find.text(AppStrings.rootLocation), findsNothing);
-      expect(
-        (await engine.getRootLocations()).map((n) => n.name),
-        ['Maison'],
-      );
-    } finally {
-      await tester.pumpWidget(const SizedBox.shrink());
-      await database.close();
-    }
-  });
+        await tester.tap(find.text(AppStrings.cancel));
+        await tester.pumpAndSettle();
+        // Back from form → type picker still open; cancel/back again to tree.
+        final back = find.byTooltip('Back');
+        if (back.evaluate().isNotEmpty) {
+          await tester.tap(back);
+          await tester.pumpAndSettle();
+        }
+
+        await tester.tap(find.byTooltip(AppStrings.add));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text(AppStrings.goodsItemType));
+        await tester.pumpAndSettle();
+        expect(find.text(AppStrings.chooseParent), findsOneWidget);
+        expect(find.text(AppStrings.isContainerLabel), findsOneWidget);
+        expect(find.text(AppStrings.rootLocation), findsNothing);
+        expect(
+          (await engine.getRootLocations()).map((n) => n.name),
+          ['Maison'],
+        );
+      } finally {
+        await tester.pumpWidget(const SizedBox.shrink());
+        await database.close();
+      }
+    },
+  );
 
   testWidgets(
     'un arbre sans racines chargées se répare vers l’état vide, sans liste blanche',

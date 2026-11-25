@@ -4,7 +4,6 @@ import 'package:drift/native.dart';
 import '../database/inventory_database.dart';
 import 'backup_contract.dart';
 import 'backup_data_writer.dart';
-import 'backup_payload.dart';
 import 'backup_snapshot_reader.dart';
 
 /// Loads a snapshot into an isolated SQLite database and verifies it.
@@ -25,10 +24,13 @@ class BackupCandidate {
       if (reloaded.nodes.length != snapshot.nodes.length ||
           reloaded.categories.length != snapshot.categories.length ||
           reloaded.nodeCategories.length != snapshot.nodeCategories.length ||
+          reloaded.stockMovements.length != snapshot.stockMovements.length ||
+          reloaded.purchaseEvents.length != snapshot.purchaseEvents.length ||
+          reloaded.appPreferences.length != snapshot.appPreferences.length ||
+          reloaded.nodeDocuments.length != snapshot.nodeDocuments.length ||
           reloaded.inventory['id'] != snapshot.inventory['id']) {
         throw const BackupException(BackupErrorCode.invalidBusinessData);
       }
-      BackupPayload.validateBusinessRules(reloaded);
     } on BackupException {
       rethrow;
     } on Exception {

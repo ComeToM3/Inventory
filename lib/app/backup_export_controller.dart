@@ -53,8 +53,8 @@ class BackupExportController extends ChangeNotifier {
                   suggestedName: suggestedName,
                   mimeType: mimeType,
                 ),
-        writeDestination: ({required String uri, required List<int> bytes}) =>
-            _documents.writeDocument(uri: uri, bytes: bytes),
+        writeDestinationFile: ({required String uri, required String path}) =>
+            _documents.writeDocumentFromPath(uri: uri, path: path),
         readDestination: _documents.readDocument,
       );
     } on BackupException catch (error) {

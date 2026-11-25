@@ -5,7 +5,13 @@ import 'package:flutter/foundation.dart';
 import '../core/domain/inventory_engine.dart';
 import '../core/domain/inventory_exception.dart';
 import '../core/domain/inventory_models.dart';
+import '../core/domain/purchase_models.dart';
 import '../core/domain/stock_quantity.dart';
+import '../core/media/goods_document_store.dart';
+import '../core/media/goods_photo_store.dart';
+
+/// Result of resolving a long-press drop on the tree.
+enum OrganizeDropKind { none, reorderBefore, reorderAfter, nest }
 
 class InventoryTreeEntry {
   const InventoryTreeEntry({required this.node, required this.depth});
@@ -40,6 +46,12 @@ class InventoryTreeController extends ChangeNotifier {
   Future<void>? _rootRequest;
   bool _rootError = false;
   bool _disposed = false;
+  /// One-shot: expand locations only (not item-containers) after first load.
+  var _initialLocationsExpandDone = false;
+  Future<void>? _initialLocationsExpandRequest;
+
+  /// True after the initial locations-only expand has finished (or been skipped).
+  bool get isInitialLocationsExpandDone => _initialLocationsExpandDone;
 
   List<InventoryNode>? get roots => _roots;
   bool get loadingRoots => _rootRequest != null;
@@ -104,6 +116,7 @@ class InventoryTreeController extends ChangeNotifier {
   Future<void> _loadRoots() async {
     final version = _readVersions[null];
     try {
+      await _engine.ensurePermanentRoot(space: space);
       final roots = await _engine.getRootLocations(space: space);
       if (_isCurrentRead(null, version)) _roots = roots;
     } catch (_) {
@@ -111,11 +124,59 @@ class InventoryTreeController extends ChangeNotifier {
     }
   }
 
+  /// Permanent root for this space (ensured). Used as default creation parent.
+  Future<InventoryNode> ensurePermanentRootNode() => _trackOperation(
+    () => _engine.ensurePermanentRoot(space: space),
+  );
+
   Future<void> _finishRoots(Future<void> request) async {
     try {
       await request;
     } finally {
       _rootRequest = null;
+      if (!_disposed) {
+        notifyListeners();
+        if (!_initialLocationsExpandDone &&
+            _roots != null &&
+            !_rootError &&
+            _initialLocationsExpandRequest == null) {
+          _initialLocationsExpandRequest = _expandLocationsInitial();
+        }
+      }
+    }
+  }
+
+  /// Opens all [NodeType.location] branches; leaves biens-contenants collapsed.
+  Future<void> _expandLocationsInitial() async {
+    if (_disposed || _initialLocationsExpandDone) return;
+    try {
+      final pending = <InventoryNode>[
+        for (final root in _roots ?? const <InventoryNode>[])
+          if (root.type == NodeType.location) root,
+      ];
+      while (pending.isNotEmpty && !_disposed) {
+        final node = pending.removeAt(0);
+        if (!_expanded.contains(node.id)) {
+          _expanded.add(node.id);
+          if (!_children.containsKey(node.id) &&
+              !_childRequests.containsKey(node.id)) {
+            _startChildren(node.id);
+          }
+        }
+        final request = _childRequests[node.id];
+        if (request != null) await request;
+        if (_disposed) return;
+        final children = _children[node.id];
+        if (children != null) {
+          for (final child in children) {
+            if (child.type == NodeType.location) pending.add(child);
+          }
+        }
+        notifyListeners();
+      }
+    } finally {
+      _initialLocationsExpandDone = true;
+      _initialLocationsExpandRequest = null;
       if (!_disposed) notifyListeners();
     }
   }
@@ -194,11 +255,140 @@ class InventoryTreeController extends ChangeNotifier {
     return !_isCachedAncestor(ancestorId: dragged.id, nodeId: target.id);
   }
 
+  /// True when [dragged] and [target] share the same parent (peers).
+  bool canAcceptReorder({
+    required InventoryNode dragged,
+    required InventoryNode target,
+  }) {
+    if (dragged.id == target.id) return false;
+    return dragged.parentId == target.parentId;
+  }
+
+  /// Single gesture: nest into a container/location, or reorder peers.
+  ///
+  /// [verticalRatio] is 0 at the top of the target row and 1 at the bottom.
+  /// Peer rows use the upper/lower half (or edge strips when the target can
+  /// also nest) so changing parent is not required to change order.
+  OrganizeDropKind resolveOrganizeDrop({
+    required InventoryNode dragged,
+    required InventoryNode target,
+    double verticalRatio = 0.5,
+  }) {
+    if (dragged.id == target.id) return OrganizeDropKind.none;
+    final ratio = verticalRatio.clamp(0.0, 1.0);
+    // Already inside this parent: nest would be a no-op — reject center drops.
+    final nest = canAcceptDrop(dragged: dragged, target: target) &&
+        dragged.parentId != target.id;
+    final reorder = canAcceptReorder(dragged: dragged, target: target);
+
+    if (reorder) {
+      if (nest) {
+        // Edge strips = reorder; center = change parent into the target.
+        if (ratio < 0.28) return OrganizeDropKind.reorderBefore;
+        if (ratio > 0.72) return OrganizeDropKind.reorderAfter;
+        return OrganizeDropKind.nest;
+      }
+      return ratio < 0.5
+          ? OrganizeDropKind.reorderBefore
+          : OrganizeDropKind.reorderAfter;
+    }
+    if (nest) return OrganizeDropKind.nest;
+    return OrganizeDropKind.none;
+  }
+
   bool isSameParentDrop({
     required InventoryNode dragged,
     required InventoryNode target,
   }) =>
       dragged.parentId == target.id;
+
+  Future<void> reorderSiblings({
+    String? parentId,
+    required List<String> orderedIds,
+  }) => _trackOperation(() async {
+    await _engine.reorderSiblings(
+      space: space,
+      parentId: parentId,
+      orderedIds: orderedIds,
+    );
+    if (_disposed) return;
+    await _refreshParent(parentId);
+  });
+
+  /// Places [nodeId] immediately before [beforeId] among siblings.
+  Future<void> placeSiblingBefore({
+    required String nodeId,
+    required String beforeId,
+  }) => _placeSiblingRelative(
+        nodeId: nodeId,
+        anchorId: beforeId,
+        after: false,
+      );
+
+  /// Places [nodeId] immediately after [afterId] among siblings.
+  Future<void> placeSiblingAfter({
+    required String nodeId,
+    required String afterId,
+  }) => _placeSiblingRelative(
+        nodeId: nodeId,
+        anchorId: afterId,
+        after: true,
+      );
+
+  Future<void> _placeSiblingRelative({
+    required String nodeId,
+    required String anchorId,
+    required bool after,
+  }) => _trackOperation(() async {
+    final node = await _engine.getNode(nodeId);
+    final anchor = await _engine.getNode(anchorId);
+    if (node.parentId != anchor.parentId) {
+      throw const InventoryException(InventoryErrorCode.invalidHierarchy);
+    }
+    final siblings = node.parentId == null
+        ? await _engine.getRootLocations(space: space)
+        : await _engine.getChildren(node.parentId!);
+    final ids = [for (final s in siblings) s.id];
+    ids.remove(nodeId);
+    final index = ids.indexOf(anchorId);
+    if (index < 0) {
+      throw const InventoryException(InventoryErrorCode.nodeNotFound);
+    }
+    ids.insert(after ? index + 1 : index, nodeId);
+    await _engine.reorderSiblings(
+      space: space,
+      parentId: node.parentId,
+      orderedIds: ids,
+    );
+    if (_disposed) return;
+    await _refreshParent(node.parentId);
+  });
+
+  Future<void> moveSibling({
+    required String nodeId,
+    required int delta,
+  }) => _trackOperation(() async {
+    final node = await _engine.getNode(nodeId);
+    final siblings = node.parentId == null
+        ? await _engine.getRootLocations(space: space)
+        : await _engine.getChildren(node.parentId!);
+    final ids = [for (final s in siblings) s.id];
+    final index = ids.indexOf(nodeId);
+    if (index < 0) {
+      throw const InventoryException(InventoryErrorCode.nodeNotFound);
+    }
+    final next = index + delta;
+    if (next < 0 || next >= ids.length) return;
+    ids.removeAt(index);
+    ids.insert(next, nodeId);
+    await _engine.reorderSiblings(
+      space: space,
+      parentId: node.parentId,
+      orderedIds: ids,
+    );
+    if (_disposed) return;
+    await _refreshParent(node.parentId);
+  });
 
   bool _isCachedAncestor({
     required String ancestorId,
@@ -413,6 +603,13 @@ class InventoryTreeController extends ChangeNotifier {
     NodeType? itemKind,
     String? newParentId,
     required bool move,
+    String? barcodeRef,
+    String? purchaseDate,
+    int? purchasePriceCents,
+    String? purchasePlace,
+    ItemObjective objective = ItemObjective.none,
+    String? photoRelPath,
+    String? iconKey,
   }) => _trackOperation(() async {
     final previous = await _engine.getNode(nodeId);
     final destinationPath = !move || newParentId == null
@@ -428,6 +625,13 @@ class InventoryTreeController extends ChangeNotifier {
       itemKind: itemKind,
       newParentId: newParentId,
       move: move,
+      barcodeRef: barcodeRef,
+      purchaseDate: purchaseDate,
+      purchasePriceCents: purchasePriceCents,
+      purchasePlace: purchasePlace,
+      objective: objective,
+      photoRelPath: photoRelPath,
+      iconKey: iconKey,
     );
     if (_disposed) return saved;
     _invalidateSubtreeTotals();
@@ -498,6 +702,75 @@ class InventoryTreeController extends ChangeNotifier {
     return moved;
   });
 
+  /// Moves [nodeId] under [newParentId] (nullable = root) then places it at
+  /// [index] among the destination siblings. Same parent is allowed (reorder).
+  Future<InventoryNode> relocateNode({
+    required String nodeId,
+    required String? newParentId,
+    required int index,
+  }) => _trackOperation(() async {
+    final previous = await _engine.getNode(nodeId);
+    final parentChanged = previous.parentId != newParentId;
+    if (parentChanged) {
+      await _engine.moveNode(nodeId, newParentId);
+    }
+    final siblings = newParentId == null
+        ? await _engine.getRootLocations(space: space)
+        : await _engine.getChildren(newParentId);
+    final ids = [for (final s in siblings) s.id];
+    ids.remove(nodeId);
+    final clamped = index.clamp(0, ids.length);
+    ids.insert(clamped, nodeId);
+    await _engine.reorderSiblings(
+      space: space,
+      parentId: newParentId,
+      orderedIds: ids,
+    );
+    final moved = await _engine.getNode(nodeId);
+    if (_disposed) return moved;
+    _invalidateSubtreeTotals();
+    final parents = {previous.parentId, moved.parentId};
+    for (final parentId in parents) {
+      _detachFromParentCache(parentId, nodeId);
+    }
+    if (newParentId != null) {
+      final destinationPath = await _engine.getPath(newParentId);
+      for (final ancestor in destinationPath) {
+        _expanded.add(ancestor.id);
+        if (!parents.contains(ancestor.id) &&
+            !_children.containsKey(ancestor.id) &&
+            !_childRequests.containsKey(ancestor.id)) {
+          _startChildren(ancestor.id);
+        }
+      }
+      await Future.wait([
+        for (final parentId in parents) _refreshParent(parentId),
+        for (final ancestor in destinationPath) ?_childRequests[ancestor.id],
+        ?_rootRequest,
+      ]);
+    } else {
+      if (_roots == null && _rootRequest == null) loadRoots();
+      await Future.wait([
+        for (final parentId in parents) _refreshParent(parentId),
+        ?_rootRequest,
+      ]);
+    }
+    if (!_disposed) notifyListeners();
+    return moved;
+  });
+
+  /// Active siblings under [parentId] (null = roots), excluding [excludingId].
+  Future<List<InventoryNode>> listSiblings({
+    String? parentId,
+    String? excludingId,
+  }) => _trackOperation(() async {
+    final siblings = parentId == null
+        ? await _engine.getRootLocations(space: space)
+        : await _engine.getChildren(parentId);
+    if (excludingId == null) return siblings;
+    return [for (final s in siblings) if (s.id != excludingId) s];
+  });
+
   /// Withdraws an active item and removes it from the active tree cache.
   Future<InventoryNode> withdrawItem(String nodeId, WithdrawalReason reason) =>
       _trackOperation(() async {
@@ -516,7 +789,12 @@ class InventoryTreeController extends ChangeNotifier {
   Future<void> deleteNodePermanently(String nodeId) =>
       _trackOperation(() async {
         final previous = await _engine.getNode(nodeId);
-        await _engine.deleteNodePermanently(nodeId);
+        final docPaths = await _engine.deleteNodePermanently(nodeId);
+        await GoodsPhotoStore().deleteRel(previous.photoRelPath);
+        final docs = GoodsDocumentStore();
+        for (final path in docPaths) {
+          await docs.deleteRel(path);
+        }
         if (_disposed) return;
         _invalidateSubtreeTotals();
         _detachFromParentCache(previous.parentId, nodeId);
@@ -524,6 +802,19 @@ class InventoryTreeController extends ChangeNotifier {
         notifyListeners();
         await _refreshParent(previous.parentId);
       });
+
+  Future<List<NodeDocument>> listNodeDocuments(String nodeId) =>
+      _trackOperation(() => _engine.listNodeDocuments(nodeId));
+
+  Future<bool> nodeHasDocuments(String nodeId) =>
+      _trackOperation(() => _engine.nodeHasDocuments(nodeId));
+
+  Future<List<String>> syncNodeDocuments(
+    String nodeId, {
+    required List<NodeDocumentWrite> documents,
+  }) => _trackOperation(
+    () => _engine.syncNodeDocuments(nodeId, documents: documents),
+  );
 
   Future<List<InventoryNode>> readWithdrawnItems() =>
       _trackOperation(() => _engine.getWithdrawnItems(space: space));
@@ -585,6 +876,15 @@ class InventoryTreeController extends ChangeNotifier {
     NodeValuation? valuation,
     String? condition,
     int? stockReference,
+    int? targetPriceCents,
+    bool? showAdvanced,
+    String? barcodeRef,
+    String? purchaseDate,
+    int? purchasePriceCents,
+    String? purchasePlace,
+    ItemObjective objective = ItemObjective.none,
+    String? photoRelPath,
+    String? iconKey,
   }) => _trackOperation(() async {
     final node = await _engine.createNode(
       name: name,
@@ -595,15 +895,123 @@ class InventoryTreeController extends ChangeNotifier {
       valuation: valuation,
       condition: condition,
       stockReference: stockReference,
+      targetPriceCents: targetPriceCents,
+      showAdvanced: showAdvanced,
+      barcodeRef: barcodeRef,
+      purchaseDate: purchaseDate,
+      purchasePriceCents: purchasePriceCents,
+      purchasePlace: purchasePlace,
+      objective: objective,
+      photoRelPath: photoRelPath,
+      iconKey: iconKey,
     );
     _invalidateSubtreeTotals();
     await _refreshParent(parentId, expandParent: true);
     return node;
   });
 
+  Future<InventoryNode> updateShowAdvanced(
+    String nodeId, {
+    required bool showAdvanced,
+  }) => _trackOperation(() async {
+    final node = await _engine.updateShowAdvanced(
+      nodeId,
+      showAdvanced: showAdvanced,
+    );
+    _applyConfirmedNode(node);
+    return node;
+  });
+
+  Future<InventoryNode> updateToBuyNeed(
+    String nodeId, {
+    required String name,
+    String? parentId,
+    required int remainingQuantity,
+    int? targetPriceCents,
+    String? iconKey,
+  }) => _trackOperation(() async {
+    final before = await _engine.getNode(nodeId);
+    final previousParent = before.parentId;
+    final node = await _engine.updateToBuyNeed(
+      nodeId,
+      name: name,
+      parentId: parentId,
+      remainingQuantity: remainingQuantity,
+      targetPriceCents: targetPriceCents,
+      iconKey: iconKey,
+    );
+    if (_disposed) return node;
+    _invalidateSubtreeTotals();
+    _applyConfirmedNode(node);
+    if (previousParent != node.parentId) {
+      await _refreshParent(previousParent);
+    }
+    await _refreshParent(node.parentId, expandParent: true);
+    return node;
+  });
+
+  Future<InventoryNode> acquireNeed(
+    String needId, {
+    required int quantity,
+    required InventorySpace destinationSpace,
+    String? destinationParentId,
+    String? existingStockProductId,
+    StockAcquireMode stockMode = StockAcquireMode.createNew,
+    int? paidPriceCents,
+    NodeValuation? goodsValuation,
+  }) => _trackOperation(() async {
+    final before = await _engine.getNode(needId);
+    final previousParent = before.parentId;
+    final node = await _engine.acquireNeed(
+      needId,
+      quantity: quantity,
+      destinationSpace: destinationSpace,
+      destinationParentId: destinationParentId,
+      existingStockProductId: existingStockProductId,
+      stockMode: stockMode,
+      paidPriceCents: paidPriceCents,
+      goodsValuation: goodsValuation,
+    );
+    if (_disposed) return node;
+    _invalidateSubtreeTotals();
+    await _refreshParent(previousParent);
+    if (node.parentId != null && node.parentId != previousParent) {
+      await _refreshParent(node.parentId);
+    }
+    if (node.status != NodeStatus.active) {
+      // Fully acquired: drop stale cache entry under the old parent.
+      notifyListeners();
+    } else {
+      _applyConfirmedNode(node);
+    }
+    return node;
+  });
+
+  Future<InventoryNode> abandonNeed(String needId) => _trackOperation(() async {
+    final before = await _engine.getNode(needId);
+    final previousParent = before.parentId;
+    final node = await _engine.abandonNeed(needId);
+    if (_disposed) return node;
+    _invalidateSubtreeTotals();
+    await _refreshParent(previousParent);
+    notifyListeners();
+    return node;
+  });
+
+  Future<List<PurchaseLedgerEntryNamed>> readRecentPurchaseEvents() =>
+      _trackOperation(() => _engine.getRecentPurchaseEvents());
+
   Future<InventoryNode> cycleStockLevel(String nodeId) =>
       _trackOperation(() async {
         final node = await _engine.cycleStockLevel(nodeId);
+        if (_disposed) return node;
+        _applyConfirmedNode(node);
+        return node;
+      });
+
+  Future<InventoryNode> setStockLevel(String nodeId, StockLevel level) =>
+      _trackOperation(() async {
+        final node = await _engine.setStockLevel(nodeId, level);
         if (_disposed) return node;
         _applyConfirmedNode(node);
         return node;
@@ -614,6 +1022,7 @@ class InventoryTreeController extends ChangeNotifier {
     required String name,
     String? parentId,
     int? stockReference,
+    String? iconKey,
   }) => _trackOperation(() async {
     final before = await _engine.getNode(nodeId);
     final previousParent = before.parentId;
@@ -622,6 +1031,7 @@ class InventoryTreeController extends ChangeNotifier {
       name: name,
       parentId: parentId,
       stockReference: stockReference,
+      iconKey: iconKey,
     );
     if (_disposed) return node;
     _invalidateSubtreeTotals();
@@ -720,6 +1130,8 @@ class InventoryTreeController extends ChangeNotifier {
     _childRequests.clear();
     _childErrors.clear();
     _expanded.clear();
+    _initialLocationsExpandDone = false;
+    _initialLocationsExpandRequest = null;
     _invalidateSubtreeTotals();
     _roots = null;
     _rootError = false;

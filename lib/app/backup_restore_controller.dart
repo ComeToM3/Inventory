@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 
 import '../core/backup/backup_contract.dart';
@@ -34,7 +36,7 @@ class BackupRestoreController extends ChangeNotifier {
     return switch (result.outcome) {
       BackupRestoreOutcome.success => AppStrings.restoreSuccess,
       BackupRestoreOutcome.cancelled => AppStrings.restoreCancelled,
-      BackupRestoreOutcome.rejected => AppStrings.restoreRejected,
+      BackupRestoreOutcome.rejected => _rejectedMessage(result.errorCode),
       BackupRestoreOutcome.failed => AppStrings.restoreFailed,
     };
   }
@@ -55,6 +57,7 @@ class BackupRestoreController extends ChangeNotifier {
   Future<BackupRestoreResult> _run(
     Future<bool> Function(BackupRestoreSummary summary) confirm,
   ) async {
+    String? importPath;
     try {
       final uri = await _documents.openDocument(
         mimeTypes: const ['application/octet-stream', '*/*'],
@@ -65,8 +68,8 @@ class BackupRestoreController extends ChangeNotifier {
         );
       }
 
-      final bytes = await _documents.readDocumentLimited(uri);
-      final prepared = await _restorer.prepare(bytes);
+      importPath = await _documents.copyDocumentToTemp(uri);
+      final prepared = await _restorer.prepareFromPath(importPath);
       if (_disposed) {
         return const BackupRestoreResult(
           outcome: BackupRestoreOutcome.cancelled,
@@ -112,6 +115,7 @@ class BackupRestoreController extends ChangeNotifier {
         BackupErrorCode.trailingData ||
         BackupErrorCode.malformedPayload ||
         BackupErrorCode.invalidBusinessData ||
+        BackupErrorCode.mediaMissing ||
         BackupErrorCode.limitExceeded => BackupRestoreOutcome.rejected,
         _ => BackupRestoreOutcome.failed,
       };
@@ -123,6 +127,16 @@ class BackupRestoreController extends ChangeNotifier {
         outcome: BackupRestoreOutcome.failed,
         errorCode: BackupErrorCode.restoreFailed,
       );
+    } finally {
+      final path = importPath;
+      if (path != null) {
+        try {
+          final file = File(path);
+          if (await file.exists()) await file.delete();
+        } on Exception {
+          // Ignore temp cleanup failures.
+        }
+      }
     }
   }
 
@@ -138,6 +152,17 @@ class BackupRestoreController extends ChangeNotifier {
       if (!_disposed) notifyListeners();
     }
   }
+
+  static String _rejectedMessage(BackupErrorCode? code) => switch (code) {
+        BackupErrorCode.checksumMismatch ||
+        BackupErrorCode.lengthMismatch ||
+        BackupErrorCode.trailingData => AppStrings.restoreCorrupted,
+        BackupErrorCode.unsupportedVersion ||
+        BackupErrorCode.invalidMagic ||
+        BackupErrorCode.invalidHeader => AppStrings.restoreIncompatible,
+        BackupErrorCode.mediaMissing => AppStrings.restoreMediaMissing,
+        _ => AppStrings.restoreRejected,
+      };
 
   @override
   void dispose() {

@@ -60,8 +60,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text(AppStrings.itemKindLabel), findsOneWidget);
-      await tester.tap(find.text(AppStrings.itemContainerType));
+      expect(find.text(AppStrings.isContainerLabel), findsOneWidget);
+      await tester.tap(find.byType(Switch));
       await tester.pumpAndSettle();
       await tester.tap(find.text(AppStrings.save));
       await tester.pumpAndSettle();

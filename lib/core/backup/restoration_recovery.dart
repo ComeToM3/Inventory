@@ -20,23 +20,53 @@ class RestorationRecovery {
       }
 
       await assertSqliteHealthy(_db);
-      final snapshot = await BackupSnapshotReader(_db).read();
-      BackupPayload.validateBusinessRules(snapshot);
 
-      if (journal.status == RestorationJournalStatus.pending.name) {
+      if (journal.status == RestorationJournalStatus.pending.storageValue) {
+        final snapshot = await BackupSnapshotReader(_db).read();
+        BackupPayload.validateBusinessRules(snapshot);
         return RestorationRecoveryState(
           status: RestorationJournalStatus.pending,
           operationId: journal.operationId,
           messageKind: RestorationRecoveryMessage.notApplied,
         );
       }
-      if (journal.status == RestorationJournalStatus.committed.name) {
+
+      if (journal.status == RestorationJournalStatus.dbReady.storageValue) {
+        final completed =
+            await BackupRestorer(_db).tryCompleteDbReady(journal.operationId);
+        if (completed) {
+          return RestorationRecoveryState(
+            status: RestorationJournalStatus.committed,
+            operationId: journal.operationId,
+            messageKind: RestorationRecoveryMessage.completed,
+          );
+        }
+        return RestorationRecoveryState(
+          status: RestorationJournalStatus.dbReady,
+          operationId: journal.operationId,
+          messageKind: RestorationRecoveryMessage.unreliable,
+        );
+      }
+
+      if (journal.status == RestorationJournalStatus.committed.storageValue) {
+        final snapshot = await BackupSnapshotReader(_db).read();
+        BackupPayload.validateBusinessRules(snapshot);
+        try {
+          await BackupRestorer.verifyActiveMediaConsistency(_db);
+        } on BackupException {
+          return RestorationRecoveryState(
+            status: RestorationJournalStatus.committed,
+            operationId: journal.operationId,
+            messageKind: RestorationRecoveryMessage.unreliable,
+          );
+        }
         return RestorationRecoveryState(
           status: RestorationJournalStatus.committed,
           operationId: journal.operationId,
           messageKind: RestorationRecoveryMessage.completed,
         );
       }
+
       return RestorationRecoveryState(
         status: RestorationJournalStatus.pending,
         operationId: journal.operationId,

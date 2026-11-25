@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
+import '../core/domain/inventory_models.dart';
 import 'app_strings.dart';
 import 'app_theme.dart';
+import 'inventory_compact_roulette.dart';
+import 'inventory_ui.dart' show InventorySquareIconButton;
 
 enum InventoryValuationMode { none, financial, sentimental }
 
@@ -16,8 +18,33 @@ int? parseCadCents(String text) {
   return cents.toInt();
 }
 
-/// Compact `$` / heart / value row shared by creation and edit.
-class InventoryValuationField extends StatelessWidget {
+/// Formats [cents] for the financial controller / parser (`12,50` or `0`).
+String formatCadControllerText(int cents) {
+  if (cents == 0) return '0';
+  final dollars = cents ~/ 100;
+  final frac = cents % 100;
+  if (frac == 0) return '$dollars,00';
+  return '$dollars,${frac.toString().padLeft(2, '0')}';
+}
+
+String _formatCadDisplay(int cents) {
+  if (cents % 100 == 0) return AppStrings.listPrice(cents);
+  final dollars = cents ~/ 100;
+  final frac = (cents % 100).toString().padLeft(2, '0');
+  return '$dollars,$frac \$';
+}
+
+/// Biens control reference height (chips, hearts, roulette, aligned neighbors).
+const valuationControlHeight = compactRouletteHeight;
+
+/// Financial step: 5 $ = 500 cents.
+const financialStepCents = 500;
+
+/// Technical scroll range: 0 $ … 100 000 $ by 5 $ (builder, not prebuilt list).
+const financialMaxStepIndex = 20000;
+
+/// Compact `$` / heart / tactile value row shared by creation and edit.
+class InventoryValuationField extends StatefulWidget {
   const InventoryValuationField({
     super.key,
     required this.mode,
@@ -33,61 +60,63 @@ class InventoryValuationField extends StatelessWidget {
   final bool enabled;
   final VoidCallback? onChanged;
 
+  @override
+  State<InventoryValuationField> createState() =>
+      _InventoryValuationFieldState();
+}
+
+class _InventoryValuationFieldState extends State<InventoryValuationField> {
   void _toggle(InventoryValuationMode next) {
-    onModeChanged(mode == next ? InventoryValuationMode.none : next);
+    widget.onModeChanged(
+      widget.mode == next ? InventoryValuationMode.none : next,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final financial = mode == InventoryValuationMode.financial;
-    final sentimental = mode == InventoryValuationMode.sentimental;
-    final active = mode != InventoryValuationMode.none;
+    final financial = widget.mode == InventoryValuationMode.financial;
+    final sentimental = widget.mode == InventoryValuationMode.sentimental;
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        _ModeChip(
+        InventorySquareIconButton(
           selected: financial,
-          enabled: enabled,
           tooltip: AppStrings.financialMode,
-          onPressed: () => _toggle(InventoryValuationMode.financial),
-          child: const Text(
-            '\$',
-            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 18),
-          ),
+          onPressed: widget.enabled
+              ? () => _toggle(InventoryValuationMode.financial)
+              : null,
+          child: const Text('\$'),
         ),
         const SizedBox(width: 8),
-        _ModeChip(
+        InventorySquareIconButton(
           selected: sentimental,
-          enabled: enabled,
           tooltip: AppStrings.sentimentalMode,
-          onPressed: () => _toggle(InventoryValuationMode.sentimental),
+          onPressed: widget.enabled
+              ? () => _toggle(InventoryValuationMode.sentimental)
+              : null,
           child: Icon(
             sentimental ? Icons.favorite : Icons.favorite_border,
-            size: 22,
           ),
         ),
         const SizedBox(width: 10),
         Expanded(
-          child: TextField(
-            controller: controller,
-            enabled: enabled && active,
-            keyboardType: financial
-                ? const TextInputType.numberWithOptions(decimal: true)
-                : TextInputType.number,
-            inputFormatters: sentimental
-                ? [
-                    FilteringTextInputFormatter.digitsOnly,
-                    LengthLimitingTextInputFormatter(1),
-                  ]
-                : [FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]'))],
-            decoration: InputDecoration(
-              hintText: !active
-                  ? AppStrings.valuationNone
-                  : financial
-                  ? AppStrings.financialInput
-                  : AppStrings.sentimentalInput,
-              isDense: true,
-            ),
-            onChanged: (_) => onChanged?.call(),
+          child: SizedBox(
+            height: valuationControlHeight,
+            child: switch (widget.mode) {
+              InventoryValuationMode.financial => _FinancialRoulette(
+                  controller: widget.controller,
+                  enabled: widget.enabled,
+                  onChanged: widget.onChanged,
+                ),
+              InventoryValuationMode.sentimental => _SentimentalHearts(
+                  controller: widget.controller,
+                  enabled: widget.enabled,
+                  onChanged: widget.onChanged,
+                ),
+              InventoryValuationMode.none => const _ValuationPlaceholder(
+                  label: AppStrings.valuationNone,
+                ),
+            },
           ),
         ),
       ],
@@ -95,48 +124,30 @@ class InventoryValuationField extends StatelessWidget {
   }
 }
 
-class _ModeChip extends StatelessWidget {
-  const _ModeChip({
-    required this.selected,
-    required this.enabled,
-    required this.onPressed,
-    required this.child,
-    required this.tooltip,
-  });
+class _ValuationPlaceholder extends StatelessWidget {
+  const _ValuationPlaceholder({required this.label});
 
-  final bool selected;
-  final bool enabled;
-  final VoidCallback onPressed;
-  final Widget child;
-  final String tooltip;
+  final String label;
 
   @override
   Widget build(BuildContext context) {
-    return Tooltip(
-      message: tooltip,
-      child: Material(
-        color: selected ? InventoryColors.petroleum : InventoryColors.mintSoft,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        child: InkWell(
-          onTap: enabled ? onPressed : null,
-          borderRadius: BorderRadius.circular(12),
-          child: SizedBox(
-            width: 48,
-            height: 48,
-            child: Center(
-              child: IconTheme(
-                data: IconThemeData(
-                  color: selected ? Colors.white : InventoryColors.petroleumDark,
-                ),
-                child: DefaultTextStyle(
-                  style: TextStyle(
-                    color: selected
-                        ? Colors.white
-                        : InventoryColors.petroleumDark,
-                  ),
-                  child: child,
-                ),
-              ),
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: InventoryColors.outline),
+        color: InventoryColors.card,
+      ),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: InventoryColors.mutedText,
+              fontSize: Theme.of(context).textTheme.bodyLarge?.fontSize,
             ),
           ),
         ),
@@ -144,3 +155,244 @@ class _ModeChip extends StatelessWidget {
     );
   }
 }
+
+class _FinancialRoulette extends StatefulWidget {
+  const _FinancialRoulette({
+    required this.controller,
+    required this.enabled,
+    this.onChanged,
+  });
+
+  final TextEditingController controller;
+  final bool enabled;
+  final VoidCallback? onChanged;
+
+  @override
+  State<_FinancialRoulette> createState() => _FinancialRouletteState();
+}
+
+class _FinancialRouletteState extends State<_FinancialRoulette> {
+  /// Non-multiple of 5 $ kept until the user scrolls to a step value.
+  int? _offStepCents;
+  var _cents = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _ingest(_readCents());
+    widget.controller.addListener(_syncFromController);
+  }
+
+  @override
+  void didUpdateWidget(covariant _FinancialRoulette oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.controller != widget.controller) {
+      oldWidget.controller.removeListener(_syncFromController);
+      widget.controller.addListener(_syncFromController);
+      _ingest(_readCents());
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.controller.removeListener(_syncFromController);
+    super.dispose();
+  }
+
+  int _readCents() {
+    final raw = widget.controller.text.trim();
+    if (raw.isEmpty) return 0;
+    return parseCadCents(raw) ?? 0;
+  }
+
+  void _ingest(int cents) {
+    _cents = cents;
+    _offStepCents =
+        cents % financialStepCents == 0 ? null : cents;
+  }
+
+  void _syncFromController() {
+    final next = _readCents();
+    if (next == _cents) return;
+    setState(() => _ingest(next));
+  }
+
+  void _commitCents(int cents) {
+    final clamped = cents.clamp(0, financialMaxStepIndex * financialStepCents);
+    if (clamped == _cents) return;
+    setState(() {
+      _cents = clamped;
+      _offStepCents =
+          clamped % financialStepCents == 0 ? null : clamped;
+    });
+    final text = formatCadControllerText(clamped);
+    if (widget.controller.text != text) {
+      widget.controller.value = TextEditingValue(
+        text: text,
+        selection: TextSelection.collapsed(offset: text.length),
+      );
+    }
+    widget.onChanged?.call();
+  }
+
+  /// Wheel indices: step amounts, with optional inserted off-step value.
+  int get _itemCount =>
+      financialMaxStepIndex + 1 + (_offStepCents != null ? 1 : 0);
+
+  int _centsAt(int index) {
+    final extra = _offStepCents;
+    if (extra == null) return index * financialStepCents;
+    final floorIdx = extra ~/ financialStepCents;
+    if (index <= floorIdx) return index * financialStepCents;
+    if (index == floorIdx + 1) return extra;
+    return (index - 1) * financialStepCents;
+  }
+
+  int _indexForCents(int cents) {
+    final extra = _offStepCents;
+    if (extra == null) {
+      return (cents ~/ financialStepCents).clamp(0, financialMaxStepIndex);
+    }
+    final floorIdx = extra ~/ financialStepCents;
+    if (cents == extra) return floorIdx + 1;
+    if (cents < extra) {
+      return (cents ~/ financialStepCents).clamp(0, floorIdx);
+    }
+    return (cents ~/ financialStepCents) + 1;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return InventoryCompactRoulette(
+      itemCount: _itemCount,
+      selectedIndex: _indexForCents(_cents),
+      enabled: widget.enabled,
+      semanticsLabel: AppStrings.financialMode,
+      semanticsValue: _formatCadDisplay(_cents),
+      labelForIndex: (index) => _formatCadDisplay(_centsAt(index)),
+      onSelectedIndexChanged: (index) => _commitCents(_centsAt(index)),
+    );
+  }
+}
+
+class _SentimentalHearts extends StatefulWidget {
+  const _SentimentalHearts({
+    required this.controller,
+    required this.enabled,
+    this.onChanged,
+  });
+
+  final TextEditingController controller;
+  final bool enabled;
+  final VoidCallback? onChanged;
+
+  @override
+  State<_SentimentalHearts> createState() => _SentimentalHeartsState();
+}
+
+class _SentimentalHeartsState extends State<_SentimentalHearts> {
+  int? _rating;
+
+  @override
+  void initState() {
+    super.initState();
+    _rating = _readRating();
+    widget.controller.addListener(_syncFromController);
+  }
+
+  @override
+  void didUpdateWidget(covariant _SentimentalHearts oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.controller != widget.controller) {
+      oldWidget.controller.removeListener(_syncFromController);
+      widget.controller.addListener(_syncFromController);
+      _rating = _readRating();
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.controller.removeListener(_syncFromController);
+    super.dispose();
+  }
+
+  int? _readRating() {
+    final raw = widget.controller.text.trim();
+    if (raw.isEmpty) return null;
+    final value = int.tryParse(raw);
+    if (value == null ||
+        value < SentimentalValuation.minRating ||
+        value > SentimentalValuation.maxRating) {
+      return null;
+    }
+    return value;
+  }
+
+  void _syncFromController() {
+    final next = _readRating();
+    if (next == _rating) return;
+    setState(() => _rating = next);
+  }
+
+  void _select(int rating) {
+    if (!widget.enabled) return;
+    setState(() => _rating = rating);
+    final text = '$rating';
+    if (widget.controller.text != text) {
+      widget.controller.value = TextEditingValue(
+        text: text,
+        selection: TextSelection.collapsed(offset: text.length),
+      );
+    }
+    widget.onChanged?.call();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final selected = _rating;
+    return Semantics(
+      label: AppStrings.sentimentalMode,
+      value: selected == null
+          ? AppStrings.valuationNone
+          : AppStrings.sentimentalRating(selected),
+      child: SizedBox(
+        height: valuationControlHeight,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: InventoryColors.outline),
+            color: InventoryColors.card,
+          ),
+          child: Row(
+            children: [
+              for (var rating = SentimentalValuation.minRating;
+                  rating <= SentimentalValuation.maxRating;
+                  rating++)
+                Expanded(
+                  child: IconButton(
+                    visualDensity: VisualDensity.compact,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints.tightFor(
+                      height: valuationControlHeight,
+                    ),
+                    tooltip: AppStrings.sentimentalRating(rating),
+                    onPressed: widget.enabled ? () => _select(rating) : null,
+                    icon: Icon(
+                      selected != null && rating <= selected
+                          ? Icons.favorite
+                          : Icons.favorite_border,
+                      size: 22,
+                      color: widget.enabled
+                          ? InventoryColors.mintDeep
+                          : InventoryColors.mutedText,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+

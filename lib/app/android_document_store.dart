@@ -1,4 +1,6 @@
 import 'package:flutter/services.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 
 import '../core/backup/backup_contract.dart';
 
@@ -62,6 +64,34 @@ class AndroidDocumentStore {
     }
   }
 
+  /// Streams a SAF document into a private temp file; returns the absolute path.
+  Future<String> copyDocumentToTemp(
+    String uri, {
+    int maxBytes = backupMaxFileBytes,
+  }) async {
+    try {
+      final directory = await getTemporaryDirectory();
+      final path = p.join(
+        directory.path,
+        'inventory_import_${DateTime.now().microsecondsSinceEpoch}.$backupFileExtension',
+      );
+      final result = await _channel.invokeMethod<String>('copyDocumentToPath', {
+        'uri': uri,
+        'path': path,
+        'maxBytes': maxBytes,
+      });
+      if (result == null || result.isEmpty) {
+        throw const BackupException(BackupErrorCode.sourceUnavailable);
+      }
+      return result;
+    } on PlatformException catch (error) {
+      if (error.code == 'TOO_LARGE') {
+        throw const BackupException(BackupErrorCode.limitExceeded);
+      }
+      throw const BackupException(BackupErrorCode.sourceUnavailable);
+    }
+  }
+
   Future<void> writeDocument({
     required String uri,
     required List<int> bytes,
@@ -70,6 +100,21 @@ class AndroidDocumentStore {
       await _channel.invokeMethod<void>('writeDocument', {
         'uri': uri,
         'bytes': Uint8List.fromList(bytes),
+      });
+    } on PlatformException {
+      throw const BackupException(BackupErrorCode.writeFailed);
+    }
+  }
+
+  /// Streams a local file to the SAF destination without a Dart byte copy.
+  Future<void> writeDocumentFromPath({
+    required String uri,
+    required String path,
+  }) async {
+    try {
+      await _channel.invokeMethod<void>('writeDocumentFromPath', {
+        'uri': uri,
+        'path': path,
       });
     } on PlatformException {
       throw const BackupException(BackupErrorCode.writeFailed);

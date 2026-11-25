@@ -492,6 +492,132 @@ class $NodesTable extends Nodes with TableInfo<$NodesTable, Node> {
     type: DriftSqlType.int,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _desiredQuantityMeta = const VerificationMeta(
+    'desiredQuantity',
+  );
+  @override
+  late final GeneratedColumn<int> desiredQuantity = GeneratedColumn<int>(
+    'desired_quantity',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _targetPriceCentsMeta = const VerificationMeta(
+    'targetPriceCents',
+  );
+  @override
+  late final GeneratedColumn<int> targetPriceCents = GeneratedColumn<int>(
+    'target_price_cents',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _siblingOrderMeta = const VerificationMeta(
+    'siblingOrder',
+  );
+  @override
+  late final GeneratedColumn<int> siblingOrder = GeneratedColumn<int>(
+    'sibling_order',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _showAdvancedMeta = const VerificationMeta(
+    'showAdvanced',
+  );
+  @override
+  late final GeneratedColumn<bool> showAdvanced = GeneratedColumn<bool>(
+    'show_advanced',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("show_advanced" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _barcodeRefMeta = const VerificationMeta(
+    'barcodeRef',
+  );
+  @override
+  late final GeneratedColumn<String> barcodeRef = GeneratedColumn<String>(
+    'barcode_ref',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _purchaseDateMeta = const VerificationMeta(
+    'purchaseDate',
+  );
+  @override
+  late final GeneratedColumn<String> purchaseDate = GeneratedColumn<String>(
+    'purchase_date',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _purchasePriceCentsMeta =
+      const VerificationMeta('purchasePriceCents');
+  @override
+  late final GeneratedColumn<int> purchasePriceCents = GeneratedColumn<int>(
+    'purchase_price_cents',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _purchasePlaceMeta = const VerificationMeta(
+    'purchasePlace',
+  );
+  @override
+  late final GeneratedColumn<String> purchasePlace = GeneratedColumn<String>(
+    'purchase_place',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _objectiveMeta = const VerificationMeta(
+    'objective',
+  );
+  @override
+  late final GeneratedColumn<String> objective = GeneratedColumn<String>(
+    'objective',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('none'),
+  );
+  static const VerificationMeta _photoRelPathMeta = const VerificationMeta(
+    'photoRelPath',
+  );
+  @override
+  late final GeneratedColumn<String> photoRelPath = GeneratedColumn<String>(
+    'photo_rel_path',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _iconKeyMeta = const VerificationMeta(
+    'iconKey',
+  );
+  @override
+  late final GeneratedColumn<String> iconKey = GeneratedColumn<String>(
+    'icon_key',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _statusMeta = const VerificationMeta('status');
   @override
   late final GeneratedColumn<String> status = GeneratedColumn<String>(
@@ -563,6 +689,17 @@ class $NodesTable extends Nodes with TableInfo<$NodesTable, Node> {
     stockUnit,
     unitCostCents,
     stockReference,
+    desiredQuantity,
+    targetPriceCents,
+    siblingOrder,
+    showAdvanced,
+    barcodeRef,
+    purchaseDate,
+    purchasePriceCents,
+    purchasePlace,
+    objective,
+    photoRelPath,
+    iconKey,
     status,
     withdrawalReason,
     withdrawnAt,
@@ -694,6 +831,96 @@ class $NodesTable extends Nodes with TableInfo<$NodesTable, Node> {
         ),
       );
     }
+    if (data.containsKey('desired_quantity')) {
+      context.handle(
+        _desiredQuantityMeta,
+        desiredQuantity.isAcceptableOrUnknown(
+          data['desired_quantity']!,
+          _desiredQuantityMeta,
+        ),
+      );
+    }
+    if (data.containsKey('target_price_cents')) {
+      context.handle(
+        _targetPriceCentsMeta,
+        targetPriceCents.isAcceptableOrUnknown(
+          data['target_price_cents']!,
+          _targetPriceCentsMeta,
+        ),
+      );
+    }
+    if (data.containsKey('sibling_order')) {
+      context.handle(
+        _siblingOrderMeta,
+        siblingOrder.isAcceptableOrUnknown(
+          data['sibling_order']!,
+          _siblingOrderMeta,
+        ),
+      );
+    }
+    if (data.containsKey('show_advanced')) {
+      context.handle(
+        _showAdvancedMeta,
+        showAdvanced.isAcceptableOrUnknown(
+          data['show_advanced']!,
+          _showAdvancedMeta,
+        ),
+      );
+    }
+    if (data.containsKey('barcode_ref')) {
+      context.handle(
+        _barcodeRefMeta,
+        barcodeRef.isAcceptableOrUnknown(data['barcode_ref']!, _barcodeRefMeta),
+      );
+    }
+    if (data.containsKey('purchase_date')) {
+      context.handle(
+        _purchaseDateMeta,
+        purchaseDate.isAcceptableOrUnknown(
+          data['purchase_date']!,
+          _purchaseDateMeta,
+        ),
+      );
+    }
+    if (data.containsKey('purchase_price_cents')) {
+      context.handle(
+        _purchasePriceCentsMeta,
+        purchasePriceCents.isAcceptableOrUnknown(
+          data['purchase_price_cents']!,
+          _purchasePriceCentsMeta,
+        ),
+      );
+    }
+    if (data.containsKey('purchase_place')) {
+      context.handle(
+        _purchasePlaceMeta,
+        purchasePlace.isAcceptableOrUnknown(
+          data['purchase_place']!,
+          _purchasePlaceMeta,
+        ),
+      );
+    }
+    if (data.containsKey('objective')) {
+      context.handle(
+        _objectiveMeta,
+        objective.isAcceptableOrUnknown(data['objective']!, _objectiveMeta),
+      );
+    }
+    if (data.containsKey('photo_rel_path')) {
+      context.handle(
+        _photoRelPathMeta,
+        photoRelPath.isAcceptableOrUnknown(
+          data['photo_rel_path']!,
+          _photoRelPathMeta,
+        ),
+      );
+    }
+    if (data.containsKey('icon_key')) {
+      context.handle(
+        _iconKeyMeta,
+        iconKey.isAcceptableOrUnknown(data['icon_key']!, _iconKeyMeta),
+      );
+    }
     if (data.containsKey('status')) {
       context.handle(
         _statusMeta,
@@ -807,6 +1034,50 @@ class $NodesTable extends Nodes with TableInfo<$NodesTable, Node> {
         DriftSqlType.int,
         data['${effectivePrefix}stock_reference'],
       ),
+      desiredQuantity: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}desired_quantity'],
+      ),
+      targetPriceCents: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}target_price_cents'],
+      ),
+      siblingOrder: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}sibling_order'],
+      )!,
+      showAdvanced: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}show_advanced'],
+      )!,
+      barcodeRef: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}barcode_ref'],
+      ),
+      purchaseDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}purchase_date'],
+      ),
+      purchasePriceCents: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}purchase_price_cents'],
+      ),
+      purchasePlace: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}purchase_place'],
+      ),
+      objective: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}objective'],
+      )!,
+      photoRelPath: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}photo_rel_path'],
+      ),
+      iconKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}icon_key'],
+      ),
       status: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}status'],
@@ -846,7 +1117,7 @@ class Node extends DataClass implements Insertable<Node> {
   final String name;
   final String nodeType;
 
-  /// Goods: piece count. Stock products: balance in quarters (D01).
+  /// Goods: piece count. Stock products: level storage 0/1/2/4 (M2.1-C).
   final int? quantity;
   final String? description;
   final String? condition;
@@ -862,6 +1133,40 @@ class Node extends DataClass implements Insertable<Node> {
 
   /// Optional conceptual total for a Stock product (e.g. 10).
   final int? stockReference;
+
+  /// To-buy: wished quantity; null outside to-buy needs.
+  final int? desiredQuantity;
+
+  /// To-buy: optional target unit price in CAD cents.
+  final int? targetPriceCents;
+
+  /// Manual display order among active siblings (same parent + space).
+  final int siblingOrder;
+
+  /// Snapshot of advanced-section expansion at creation (or later toggles).
+  /// Independent of the global default preference after the node exists.
+  final bool showAdvanced;
+
+  /// Optional barcode / reference (goods advanced fields, M4.1-B).
+  final String? barcodeRef;
+
+  /// Optional purchase date as `yyyy-MM-dd` (goods only).
+  final String? purchaseDate;
+
+  /// Optional amount paid in CAD cents (independent of valuation).
+  final int? purchasePriceCents;
+
+  /// Optional seller / place of purchase.
+  final String? purchasePlace;
+
+  /// Goods objective: none | sell | repair.
+  final String objective;
+
+  /// Relative path to the optional main photo WebP (`photos/….webp`).
+  final String? photoRelPath;
+
+  /// Manual icon catalog key; null = resolve automatically from the name.
+  final String? iconKey;
   final String status;
   final String? withdrawalReason;
   final String? withdrawnAt;
@@ -883,6 +1188,17 @@ class Node extends DataClass implements Insertable<Node> {
     this.stockUnit,
     this.unitCostCents,
     this.stockReference,
+    this.desiredQuantity,
+    this.targetPriceCents,
+    required this.siblingOrder,
+    required this.showAdvanced,
+    this.barcodeRef,
+    this.purchaseDate,
+    this.purchasePriceCents,
+    this.purchasePlace,
+    required this.objective,
+    this.photoRelPath,
+    this.iconKey,
     required this.status,
     this.withdrawalReason,
     this.withdrawnAt,
@@ -926,6 +1242,33 @@ class Node extends DataClass implements Insertable<Node> {
     }
     if (!nullToAbsent || stockReference != null) {
       map['stock_reference'] = Variable<int>(stockReference);
+    }
+    if (!nullToAbsent || desiredQuantity != null) {
+      map['desired_quantity'] = Variable<int>(desiredQuantity);
+    }
+    if (!nullToAbsent || targetPriceCents != null) {
+      map['target_price_cents'] = Variable<int>(targetPriceCents);
+    }
+    map['sibling_order'] = Variable<int>(siblingOrder);
+    map['show_advanced'] = Variable<bool>(showAdvanced);
+    if (!nullToAbsent || barcodeRef != null) {
+      map['barcode_ref'] = Variable<String>(barcodeRef);
+    }
+    if (!nullToAbsent || purchaseDate != null) {
+      map['purchase_date'] = Variable<String>(purchaseDate);
+    }
+    if (!nullToAbsent || purchasePriceCents != null) {
+      map['purchase_price_cents'] = Variable<int>(purchasePriceCents);
+    }
+    if (!nullToAbsent || purchasePlace != null) {
+      map['purchase_place'] = Variable<String>(purchasePlace);
+    }
+    map['objective'] = Variable<String>(objective);
+    if (!nullToAbsent || photoRelPath != null) {
+      map['photo_rel_path'] = Variable<String>(photoRelPath);
+    }
+    if (!nullToAbsent || iconKey != null) {
+      map['icon_key'] = Variable<String>(iconKey);
     }
     map['status'] = Variable<String>(status);
     if (!nullToAbsent || withdrawalReason != null) {
@@ -976,6 +1319,33 @@ class Node extends DataClass implements Insertable<Node> {
       stockReference: stockReference == null && nullToAbsent
           ? const Value.absent()
           : Value(stockReference),
+      desiredQuantity: desiredQuantity == null && nullToAbsent
+          ? const Value.absent()
+          : Value(desiredQuantity),
+      targetPriceCents: targetPriceCents == null && nullToAbsent
+          ? const Value.absent()
+          : Value(targetPriceCents),
+      siblingOrder: Value(siblingOrder),
+      showAdvanced: Value(showAdvanced),
+      barcodeRef: barcodeRef == null && nullToAbsent
+          ? const Value.absent()
+          : Value(barcodeRef),
+      purchaseDate: purchaseDate == null && nullToAbsent
+          ? const Value.absent()
+          : Value(purchaseDate),
+      purchasePriceCents: purchasePriceCents == null && nullToAbsent
+          ? const Value.absent()
+          : Value(purchasePriceCents),
+      purchasePlace: purchasePlace == null && nullToAbsent
+          ? const Value.absent()
+          : Value(purchasePlace),
+      objective: Value(objective),
+      photoRelPath: photoRelPath == null && nullToAbsent
+          ? const Value.absent()
+          : Value(photoRelPath),
+      iconKey: iconKey == null && nullToAbsent
+          ? const Value.absent()
+          : Value(iconKey),
       status: Value(status),
       withdrawalReason: withdrawalReason == null && nullToAbsent
           ? const Value.absent()
@@ -1011,6 +1381,17 @@ class Node extends DataClass implements Insertable<Node> {
       stockUnit: serializer.fromJson<String?>(json['stockUnit']),
       unitCostCents: serializer.fromJson<int?>(json['unitCostCents']),
       stockReference: serializer.fromJson<int?>(json['stockReference']),
+      desiredQuantity: serializer.fromJson<int?>(json['desiredQuantity']),
+      targetPriceCents: serializer.fromJson<int?>(json['targetPriceCents']),
+      siblingOrder: serializer.fromJson<int>(json['siblingOrder']),
+      showAdvanced: serializer.fromJson<bool>(json['showAdvanced']),
+      barcodeRef: serializer.fromJson<String?>(json['barcodeRef']),
+      purchaseDate: serializer.fromJson<String?>(json['purchaseDate']),
+      purchasePriceCents: serializer.fromJson<int?>(json['purchasePriceCents']),
+      purchasePlace: serializer.fromJson<String?>(json['purchasePlace']),
+      objective: serializer.fromJson<String>(json['objective']),
+      photoRelPath: serializer.fromJson<String?>(json['photoRelPath']),
+      iconKey: serializer.fromJson<String?>(json['iconKey']),
       status: serializer.fromJson<String>(json['status']),
       withdrawalReason: serializer.fromJson<String?>(json['withdrawalReason']),
       withdrawnAt: serializer.fromJson<String?>(json['withdrawnAt']),
@@ -1037,6 +1418,17 @@ class Node extends DataClass implements Insertable<Node> {
       'stockUnit': serializer.toJson<String?>(stockUnit),
       'unitCostCents': serializer.toJson<int?>(unitCostCents),
       'stockReference': serializer.toJson<int?>(stockReference),
+      'desiredQuantity': serializer.toJson<int?>(desiredQuantity),
+      'targetPriceCents': serializer.toJson<int?>(targetPriceCents),
+      'siblingOrder': serializer.toJson<int>(siblingOrder),
+      'showAdvanced': serializer.toJson<bool>(showAdvanced),
+      'barcodeRef': serializer.toJson<String?>(barcodeRef),
+      'purchaseDate': serializer.toJson<String?>(purchaseDate),
+      'purchasePriceCents': serializer.toJson<int?>(purchasePriceCents),
+      'purchasePlace': serializer.toJson<String?>(purchasePlace),
+      'objective': serializer.toJson<String>(objective),
+      'photoRelPath': serializer.toJson<String?>(photoRelPath),
+      'iconKey': serializer.toJson<String?>(iconKey),
       'status': serializer.toJson<String>(status),
       'withdrawalReason': serializer.toJson<String?>(withdrawalReason),
       'withdrawnAt': serializer.toJson<String?>(withdrawnAt),
@@ -1061,6 +1453,17 @@ class Node extends DataClass implements Insertable<Node> {
     Value<String?> stockUnit = const Value.absent(),
     Value<int?> unitCostCents = const Value.absent(),
     Value<int?> stockReference = const Value.absent(),
+    Value<int?> desiredQuantity = const Value.absent(),
+    Value<int?> targetPriceCents = const Value.absent(),
+    int? siblingOrder,
+    bool? showAdvanced,
+    Value<String?> barcodeRef = const Value.absent(),
+    Value<String?> purchaseDate = const Value.absent(),
+    Value<int?> purchasePriceCents = const Value.absent(),
+    Value<String?> purchasePlace = const Value.absent(),
+    String? objective,
+    Value<String?> photoRelPath = const Value.absent(),
+    Value<String?> iconKey = const Value.absent(),
     String? status,
     Value<String?> withdrawalReason = const Value.absent(),
     Value<String?> withdrawnAt = const Value.absent(),
@@ -1090,6 +1493,25 @@ class Node extends DataClass implements Insertable<Node> {
     stockReference: stockReference.present
         ? stockReference.value
         : this.stockReference,
+    desiredQuantity: desiredQuantity.present
+        ? desiredQuantity.value
+        : this.desiredQuantity,
+    targetPriceCents: targetPriceCents.present
+        ? targetPriceCents.value
+        : this.targetPriceCents,
+    siblingOrder: siblingOrder ?? this.siblingOrder,
+    showAdvanced: showAdvanced ?? this.showAdvanced,
+    barcodeRef: barcodeRef.present ? barcodeRef.value : this.barcodeRef,
+    purchaseDate: purchaseDate.present ? purchaseDate.value : this.purchaseDate,
+    purchasePriceCents: purchasePriceCents.present
+        ? purchasePriceCents.value
+        : this.purchasePriceCents,
+    purchasePlace: purchasePlace.present
+        ? purchasePlace.value
+        : this.purchasePlace,
+    objective: objective ?? this.objective,
+    photoRelPath: photoRelPath.present ? photoRelPath.value : this.photoRelPath,
+    iconKey: iconKey.present ? iconKey.value : this.iconKey,
     status: status ?? this.status,
     withdrawalReason: withdrawalReason.present
         ? withdrawalReason.value
@@ -1127,6 +1549,35 @@ class Node extends DataClass implements Insertable<Node> {
       stockReference: data.stockReference.present
           ? data.stockReference.value
           : this.stockReference,
+      desiredQuantity: data.desiredQuantity.present
+          ? data.desiredQuantity.value
+          : this.desiredQuantity,
+      targetPriceCents: data.targetPriceCents.present
+          ? data.targetPriceCents.value
+          : this.targetPriceCents,
+      siblingOrder: data.siblingOrder.present
+          ? data.siblingOrder.value
+          : this.siblingOrder,
+      showAdvanced: data.showAdvanced.present
+          ? data.showAdvanced.value
+          : this.showAdvanced,
+      barcodeRef: data.barcodeRef.present
+          ? data.barcodeRef.value
+          : this.barcodeRef,
+      purchaseDate: data.purchaseDate.present
+          ? data.purchaseDate.value
+          : this.purchaseDate,
+      purchasePriceCents: data.purchasePriceCents.present
+          ? data.purchasePriceCents.value
+          : this.purchasePriceCents,
+      purchasePlace: data.purchasePlace.present
+          ? data.purchasePlace.value
+          : this.purchasePlace,
+      objective: data.objective.present ? data.objective.value : this.objective,
+      photoRelPath: data.photoRelPath.present
+          ? data.photoRelPath.value
+          : this.photoRelPath,
+      iconKey: data.iconKey.present ? data.iconKey.value : this.iconKey,
       status: data.status.present ? data.status.value : this.status,
       withdrawalReason: data.withdrawalReason.present
           ? data.withdrawalReason.value
@@ -1157,6 +1608,17 @@ class Node extends DataClass implements Insertable<Node> {
           ..write('stockUnit: $stockUnit, ')
           ..write('unitCostCents: $unitCostCents, ')
           ..write('stockReference: $stockReference, ')
+          ..write('desiredQuantity: $desiredQuantity, ')
+          ..write('targetPriceCents: $targetPriceCents, ')
+          ..write('siblingOrder: $siblingOrder, ')
+          ..write('showAdvanced: $showAdvanced, ')
+          ..write('barcodeRef: $barcodeRef, ')
+          ..write('purchaseDate: $purchaseDate, ')
+          ..write('purchasePriceCents: $purchasePriceCents, ')
+          ..write('purchasePlace: $purchasePlace, ')
+          ..write('objective: $objective, ')
+          ..write('photoRelPath: $photoRelPath, ')
+          ..write('iconKey: $iconKey, ')
           ..write('status: $status, ')
           ..write('withdrawalReason: $withdrawalReason, ')
           ..write('withdrawnAt: $withdrawnAt, ')
@@ -1167,7 +1629,7 @@ class Node extends DataClass implements Insertable<Node> {
   }
 
   @override
-  int get hashCode => Object.hash(
+  int get hashCode => Object.hashAll([
     id,
     inventoryId,
     parentId,
@@ -1183,12 +1645,23 @@ class Node extends DataClass implements Insertable<Node> {
     stockUnit,
     unitCostCents,
     stockReference,
+    desiredQuantity,
+    targetPriceCents,
+    siblingOrder,
+    showAdvanced,
+    barcodeRef,
+    purchaseDate,
+    purchasePriceCents,
+    purchasePlace,
+    objective,
+    photoRelPath,
+    iconKey,
     status,
     withdrawalReason,
     withdrawnAt,
     createdAt,
     updatedAt,
-  );
+  ]);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -1208,6 +1681,17 @@ class Node extends DataClass implements Insertable<Node> {
           other.stockUnit == this.stockUnit &&
           other.unitCostCents == this.unitCostCents &&
           other.stockReference == this.stockReference &&
+          other.desiredQuantity == this.desiredQuantity &&
+          other.targetPriceCents == this.targetPriceCents &&
+          other.siblingOrder == this.siblingOrder &&
+          other.showAdvanced == this.showAdvanced &&
+          other.barcodeRef == this.barcodeRef &&
+          other.purchaseDate == this.purchaseDate &&
+          other.purchasePriceCents == this.purchasePriceCents &&
+          other.purchasePlace == this.purchasePlace &&
+          other.objective == this.objective &&
+          other.photoRelPath == this.photoRelPath &&
+          other.iconKey == this.iconKey &&
           other.status == this.status &&
           other.withdrawalReason == this.withdrawalReason &&
           other.withdrawnAt == this.withdrawnAt &&
@@ -1231,6 +1715,17 @@ class NodesCompanion extends UpdateCompanion<Node> {
   final Value<String?> stockUnit;
   final Value<int?> unitCostCents;
   final Value<int?> stockReference;
+  final Value<int?> desiredQuantity;
+  final Value<int?> targetPriceCents;
+  final Value<int> siblingOrder;
+  final Value<bool> showAdvanced;
+  final Value<String?> barcodeRef;
+  final Value<String?> purchaseDate;
+  final Value<int?> purchasePriceCents;
+  final Value<String?> purchasePlace;
+  final Value<String> objective;
+  final Value<String?> photoRelPath;
+  final Value<String?> iconKey;
   final Value<String> status;
   final Value<String?> withdrawalReason;
   final Value<String?> withdrawnAt;
@@ -1253,6 +1748,17 @@ class NodesCompanion extends UpdateCompanion<Node> {
     this.stockUnit = const Value.absent(),
     this.unitCostCents = const Value.absent(),
     this.stockReference = const Value.absent(),
+    this.desiredQuantity = const Value.absent(),
+    this.targetPriceCents = const Value.absent(),
+    this.siblingOrder = const Value.absent(),
+    this.showAdvanced = const Value.absent(),
+    this.barcodeRef = const Value.absent(),
+    this.purchaseDate = const Value.absent(),
+    this.purchasePriceCents = const Value.absent(),
+    this.purchasePlace = const Value.absent(),
+    this.objective = const Value.absent(),
+    this.photoRelPath = const Value.absent(),
+    this.iconKey = const Value.absent(),
     this.status = const Value.absent(),
     this.withdrawalReason = const Value.absent(),
     this.withdrawnAt = const Value.absent(),
@@ -1276,6 +1782,17 @@ class NodesCompanion extends UpdateCompanion<Node> {
     this.stockUnit = const Value.absent(),
     this.unitCostCents = const Value.absent(),
     this.stockReference = const Value.absent(),
+    this.desiredQuantity = const Value.absent(),
+    this.targetPriceCents = const Value.absent(),
+    this.siblingOrder = const Value.absent(),
+    this.showAdvanced = const Value.absent(),
+    this.barcodeRef = const Value.absent(),
+    this.purchaseDate = const Value.absent(),
+    this.purchasePriceCents = const Value.absent(),
+    this.purchasePlace = const Value.absent(),
+    this.objective = const Value.absent(),
+    this.photoRelPath = const Value.absent(),
+    this.iconKey = const Value.absent(),
     this.status = const Value.absent(),
     this.withdrawalReason = const Value.absent(),
     this.withdrawnAt = const Value.absent(),
@@ -1304,6 +1821,17 @@ class NodesCompanion extends UpdateCompanion<Node> {
     Expression<String>? stockUnit,
     Expression<int>? unitCostCents,
     Expression<int>? stockReference,
+    Expression<int>? desiredQuantity,
+    Expression<int>? targetPriceCents,
+    Expression<int>? siblingOrder,
+    Expression<bool>? showAdvanced,
+    Expression<String>? barcodeRef,
+    Expression<String>? purchaseDate,
+    Expression<int>? purchasePriceCents,
+    Expression<String>? purchasePlace,
+    Expression<String>? objective,
+    Expression<String>? photoRelPath,
+    Expression<String>? iconKey,
     Expression<String>? status,
     Expression<String>? withdrawalReason,
     Expression<String>? withdrawnAt,
@@ -1328,6 +1856,18 @@ class NodesCompanion extends UpdateCompanion<Node> {
       if (stockUnit != null) 'stock_unit': stockUnit,
       if (unitCostCents != null) 'unit_cost_cents': unitCostCents,
       if (stockReference != null) 'stock_reference': stockReference,
+      if (desiredQuantity != null) 'desired_quantity': desiredQuantity,
+      if (targetPriceCents != null) 'target_price_cents': targetPriceCents,
+      if (siblingOrder != null) 'sibling_order': siblingOrder,
+      if (showAdvanced != null) 'show_advanced': showAdvanced,
+      if (barcodeRef != null) 'barcode_ref': barcodeRef,
+      if (purchaseDate != null) 'purchase_date': purchaseDate,
+      if (purchasePriceCents != null)
+        'purchase_price_cents': purchasePriceCents,
+      if (purchasePlace != null) 'purchase_place': purchasePlace,
+      if (objective != null) 'objective': objective,
+      if (photoRelPath != null) 'photo_rel_path': photoRelPath,
+      if (iconKey != null) 'icon_key': iconKey,
       if (status != null) 'status': status,
       if (withdrawalReason != null) 'withdrawal_reason': withdrawalReason,
       if (withdrawnAt != null) 'withdrawn_at': withdrawnAt,
@@ -1353,6 +1893,17 @@ class NodesCompanion extends UpdateCompanion<Node> {
     Value<String?>? stockUnit,
     Value<int?>? unitCostCents,
     Value<int?>? stockReference,
+    Value<int?>? desiredQuantity,
+    Value<int?>? targetPriceCents,
+    Value<int>? siblingOrder,
+    Value<bool>? showAdvanced,
+    Value<String?>? barcodeRef,
+    Value<String?>? purchaseDate,
+    Value<int?>? purchasePriceCents,
+    Value<String?>? purchasePlace,
+    Value<String>? objective,
+    Value<String?>? photoRelPath,
+    Value<String?>? iconKey,
     Value<String>? status,
     Value<String?>? withdrawalReason,
     Value<String?>? withdrawnAt,
@@ -1376,6 +1927,17 @@ class NodesCompanion extends UpdateCompanion<Node> {
       stockUnit: stockUnit ?? this.stockUnit,
       unitCostCents: unitCostCents ?? this.unitCostCents,
       stockReference: stockReference ?? this.stockReference,
+      desiredQuantity: desiredQuantity ?? this.desiredQuantity,
+      targetPriceCents: targetPriceCents ?? this.targetPriceCents,
+      siblingOrder: siblingOrder ?? this.siblingOrder,
+      showAdvanced: showAdvanced ?? this.showAdvanced,
+      barcodeRef: barcodeRef ?? this.barcodeRef,
+      purchaseDate: purchaseDate ?? this.purchaseDate,
+      purchasePriceCents: purchasePriceCents ?? this.purchasePriceCents,
+      purchasePlace: purchasePlace ?? this.purchasePlace,
+      objective: objective ?? this.objective,
+      photoRelPath: photoRelPath ?? this.photoRelPath,
+      iconKey: iconKey ?? this.iconKey,
       status: status ?? this.status,
       withdrawalReason: withdrawalReason ?? this.withdrawalReason,
       withdrawnAt: withdrawnAt ?? this.withdrawnAt,
@@ -1433,6 +1995,39 @@ class NodesCompanion extends UpdateCompanion<Node> {
     if (stockReference.present) {
       map['stock_reference'] = Variable<int>(stockReference.value);
     }
+    if (desiredQuantity.present) {
+      map['desired_quantity'] = Variable<int>(desiredQuantity.value);
+    }
+    if (targetPriceCents.present) {
+      map['target_price_cents'] = Variable<int>(targetPriceCents.value);
+    }
+    if (siblingOrder.present) {
+      map['sibling_order'] = Variable<int>(siblingOrder.value);
+    }
+    if (showAdvanced.present) {
+      map['show_advanced'] = Variable<bool>(showAdvanced.value);
+    }
+    if (barcodeRef.present) {
+      map['barcode_ref'] = Variable<String>(barcodeRef.value);
+    }
+    if (purchaseDate.present) {
+      map['purchase_date'] = Variable<String>(purchaseDate.value);
+    }
+    if (purchasePriceCents.present) {
+      map['purchase_price_cents'] = Variable<int>(purchasePriceCents.value);
+    }
+    if (purchasePlace.present) {
+      map['purchase_place'] = Variable<String>(purchasePlace.value);
+    }
+    if (objective.present) {
+      map['objective'] = Variable<String>(objective.value);
+    }
+    if (photoRelPath.present) {
+      map['photo_rel_path'] = Variable<String>(photoRelPath.value);
+    }
+    if (iconKey.present) {
+      map['icon_key'] = Variable<String>(iconKey.value);
+    }
     if (status.present) {
       map['status'] = Variable<String>(status.value);
     }
@@ -1472,6 +2067,17 @@ class NodesCompanion extends UpdateCompanion<Node> {
           ..write('stockUnit: $stockUnit, ')
           ..write('unitCostCents: $unitCostCents, ')
           ..write('stockReference: $stockReference, ')
+          ..write('desiredQuantity: $desiredQuantity, ')
+          ..write('targetPriceCents: $targetPriceCents, ')
+          ..write('siblingOrder: $siblingOrder, ')
+          ..write('showAdvanced: $showAdvanced, ')
+          ..write('barcodeRef: $barcodeRef, ')
+          ..write('purchaseDate: $purchaseDate, ')
+          ..write('purchasePriceCents: $purchasePriceCents, ')
+          ..write('purchasePlace: $purchasePlace, ')
+          ..write('objective: $objective, ')
+          ..write('photoRelPath: $photoRelPath, ')
+          ..write('iconKey: $iconKey, ')
           ..write('status: $status, ')
           ..write('withdrawalReason: $withdrawalReason, ')
           ..write('withdrawnAt: $withdrawnAt, ')
@@ -3139,6 +3745,1504 @@ class StockMovementsCompanion extends UpdateCompanion<StockMovement> {
   }
 }
 
+class $PurchaseEventsTable extends PurchaseEvents
+    with TableInfo<$PurchaseEventsTable, PurchaseEvent> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $PurchaseEventsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _inventoryIdMeta = const VerificationMeta(
+    'inventoryId',
+  );
+  @override
+  late final GeneratedColumn<String> inventoryId = GeneratedColumn<String>(
+    'inventory_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES inventories (id) ON DELETE RESTRICT',
+    ),
+  );
+  static const VerificationMeta _needNodeIdMeta = const VerificationMeta(
+    'needNodeId',
+  );
+  @override
+  late final GeneratedColumn<String> needNodeId = GeneratedColumn<String>(
+    'need_node_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _eventTypeMeta = const VerificationMeta(
+    'eventType',
+  );
+  @override
+  late final GeneratedColumn<String> eventType = GeneratedColumn<String>(
+    'event_type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _quantityMeta = const VerificationMeta(
+    'quantity',
+  );
+  @override
+  late final GeneratedColumn<int> quantity = GeneratedColumn<int>(
+    'quantity',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _targetPriceCentsMeta = const VerificationMeta(
+    'targetPriceCents',
+  );
+  @override
+  late final GeneratedColumn<int> targetPriceCents = GeneratedColumn<int>(
+    'target_price_cents',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _paidPriceCentsMeta = const VerificationMeta(
+    'paidPriceCents',
+  );
+  @override
+  late final GeneratedColumn<int> paidPriceCents = GeneratedColumn<int>(
+    'paid_price_cents',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _destinationSpaceMeta = const VerificationMeta(
+    'destinationSpace',
+  );
+  @override
+  late final GeneratedColumn<String> destinationSpace = GeneratedColumn<String>(
+    'destination_space',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _destinationNodeIdMeta = const VerificationMeta(
+    'destinationNodeId',
+  );
+  @override
+  late final GeneratedColumn<String> destinationNodeId =
+      GeneratedColumn<String>(
+        'destination_node_id',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _destinationParentIdMeta =
+      const VerificationMeta('destinationParentId');
+  @override
+  late final GeneratedColumn<String> destinationParentId =
+      GeneratedColumn<String>(
+        'destination_parent_id',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<String> createdAt = GeneratedColumn<String>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    inventoryId,
+    needNodeId,
+    eventType,
+    quantity,
+    targetPriceCents,
+    paidPriceCents,
+    destinationSpace,
+    destinationNodeId,
+    destinationParentId,
+    createdAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'purchase_events';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<PurchaseEvent> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('inventory_id')) {
+      context.handle(
+        _inventoryIdMeta,
+        inventoryId.isAcceptableOrUnknown(
+          data['inventory_id']!,
+          _inventoryIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_inventoryIdMeta);
+    }
+    if (data.containsKey('need_node_id')) {
+      context.handle(
+        _needNodeIdMeta,
+        needNodeId.isAcceptableOrUnknown(
+          data['need_node_id']!,
+          _needNodeIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_needNodeIdMeta);
+    }
+    if (data.containsKey('event_type')) {
+      context.handle(
+        _eventTypeMeta,
+        eventType.isAcceptableOrUnknown(data['event_type']!, _eventTypeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_eventTypeMeta);
+    }
+    if (data.containsKey('quantity')) {
+      context.handle(
+        _quantityMeta,
+        quantity.isAcceptableOrUnknown(data['quantity']!, _quantityMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_quantityMeta);
+    }
+    if (data.containsKey('target_price_cents')) {
+      context.handle(
+        _targetPriceCentsMeta,
+        targetPriceCents.isAcceptableOrUnknown(
+          data['target_price_cents']!,
+          _targetPriceCentsMeta,
+        ),
+      );
+    }
+    if (data.containsKey('paid_price_cents')) {
+      context.handle(
+        _paidPriceCentsMeta,
+        paidPriceCents.isAcceptableOrUnknown(
+          data['paid_price_cents']!,
+          _paidPriceCentsMeta,
+        ),
+      );
+    }
+    if (data.containsKey('destination_space')) {
+      context.handle(
+        _destinationSpaceMeta,
+        destinationSpace.isAcceptableOrUnknown(
+          data['destination_space']!,
+          _destinationSpaceMeta,
+        ),
+      );
+    }
+    if (data.containsKey('destination_node_id')) {
+      context.handle(
+        _destinationNodeIdMeta,
+        destinationNodeId.isAcceptableOrUnknown(
+          data['destination_node_id']!,
+          _destinationNodeIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('destination_parent_id')) {
+      context.handle(
+        _destinationParentIdMeta,
+        destinationParentId.isAcceptableOrUnknown(
+          data['destination_parent_id']!,
+          _destinationParentIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  PurchaseEvent map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return PurchaseEvent(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      inventoryId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}inventory_id'],
+      )!,
+      needNodeId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}need_node_id'],
+      )!,
+      eventType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}event_type'],
+      )!,
+      quantity: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}quantity'],
+      )!,
+      targetPriceCents: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}target_price_cents'],
+      ),
+      paidPriceCents: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}paid_price_cents'],
+      ),
+      destinationSpace: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}destination_space'],
+      ),
+      destinationNodeId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}destination_node_id'],
+      ),
+      destinationParentId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}destination_parent_id'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}created_at'],
+      )!,
+    );
+  }
+
+  @override
+  $PurchaseEventsTable createAlias(String alias) {
+    return $PurchaseEventsTable(attachedDatabase, alias);
+  }
+}
+
+class PurchaseEvent extends DataClass implements Insertable<PurchaseEvent> {
+  final String id;
+  final String inventoryId;
+  final String needNodeId;
+  final String eventType;
+  final int quantity;
+  final int? targetPriceCents;
+  final int? paidPriceCents;
+  final String? destinationSpace;
+  final String? destinationNodeId;
+  final String? destinationParentId;
+  final String createdAt;
+  const PurchaseEvent({
+    required this.id,
+    required this.inventoryId,
+    required this.needNodeId,
+    required this.eventType,
+    required this.quantity,
+    this.targetPriceCents,
+    this.paidPriceCents,
+    this.destinationSpace,
+    this.destinationNodeId,
+    this.destinationParentId,
+    required this.createdAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['inventory_id'] = Variable<String>(inventoryId);
+    map['need_node_id'] = Variable<String>(needNodeId);
+    map['event_type'] = Variable<String>(eventType);
+    map['quantity'] = Variable<int>(quantity);
+    if (!nullToAbsent || targetPriceCents != null) {
+      map['target_price_cents'] = Variable<int>(targetPriceCents);
+    }
+    if (!nullToAbsent || paidPriceCents != null) {
+      map['paid_price_cents'] = Variable<int>(paidPriceCents);
+    }
+    if (!nullToAbsent || destinationSpace != null) {
+      map['destination_space'] = Variable<String>(destinationSpace);
+    }
+    if (!nullToAbsent || destinationNodeId != null) {
+      map['destination_node_id'] = Variable<String>(destinationNodeId);
+    }
+    if (!nullToAbsent || destinationParentId != null) {
+      map['destination_parent_id'] = Variable<String>(destinationParentId);
+    }
+    map['created_at'] = Variable<String>(createdAt);
+    return map;
+  }
+
+  PurchaseEventsCompanion toCompanion(bool nullToAbsent) {
+    return PurchaseEventsCompanion(
+      id: Value(id),
+      inventoryId: Value(inventoryId),
+      needNodeId: Value(needNodeId),
+      eventType: Value(eventType),
+      quantity: Value(quantity),
+      targetPriceCents: targetPriceCents == null && nullToAbsent
+          ? const Value.absent()
+          : Value(targetPriceCents),
+      paidPriceCents: paidPriceCents == null && nullToAbsent
+          ? const Value.absent()
+          : Value(paidPriceCents),
+      destinationSpace: destinationSpace == null && nullToAbsent
+          ? const Value.absent()
+          : Value(destinationSpace),
+      destinationNodeId: destinationNodeId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(destinationNodeId),
+      destinationParentId: destinationParentId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(destinationParentId),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory PurchaseEvent.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return PurchaseEvent(
+      id: serializer.fromJson<String>(json['id']),
+      inventoryId: serializer.fromJson<String>(json['inventoryId']),
+      needNodeId: serializer.fromJson<String>(json['needNodeId']),
+      eventType: serializer.fromJson<String>(json['eventType']),
+      quantity: serializer.fromJson<int>(json['quantity']),
+      targetPriceCents: serializer.fromJson<int?>(json['targetPriceCents']),
+      paidPriceCents: serializer.fromJson<int?>(json['paidPriceCents']),
+      destinationSpace: serializer.fromJson<String?>(json['destinationSpace']),
+      destinationNodeId: serializer.fromJson<String?>(
+        json['destinationNodeId'],
+      ),
+      destinationParentId: serializer.fromJson<String?>(
+        json['destinationParentId'],
+      ),
+      createdAt: serializer.fromJson<String>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'inventoryId': serializer.toJson<String>(inventoryId),
+      'needNodeId': serializer.toJson<String>(needNodeId),
+      'eventType': serializer.toJson<String>(eventType),
+      'quantity': serializer.toJson<int>(quantity),
+      'targetPriceCents': serializer.toJson<int?>(targetPriceCents),
+      'paidPriceCents': serializer.toJson<int?>(paidPriceCents),
+      'destinationSpace': serializer.toJson<String?>(destinationSpace),
+      'destinationNodeId': serializer.toJson<String?>(destinationNodeId),
+      'destinationParentId': serializer.toJson<String?>(destinationParentId),
+      'createdAt': serializer.toJson<String>(createdAt),
+    };
+  }
+
+  PurchaseEvent copyWith({
+    String? id,
+    String? inventoryId,
+    String? needNodeId,
+    String? eventType,
+    int? quantity,
+    Value<int?> targetPriceCents = const Value.absent(),
+    Value<int?> paidPriceCents = const Value.absent(),
+    Value<String?> destinationSpace = const Value.absent(),
+    Value<String?> destinationNodeId = const Value.absent(),
+    Value<String?> destinationParentId = const Value.absent(),
+    String? createdAt,
+  }) => PurchaseEvent(
+    id: id ?? this.id,
+    inventoryId: inventoryId ?? this.inventoryId,
+    needNodeId: needNodeId ?? this.needNodeId,
+    eventType: eventType ?? this.eventType,
+    quantity: quantity ?? this.quantity,
+    targetPriceCents: targetPriceCents.present
+        ? targetPriceCents.value
+        : this.targetPriceCents,
+    paidPriceCents: paidPriceCents.present
+        ? paidPriceCents.value
+        : this.paidPriceCents,
+    destinationSpace: destinationSpace.present
+        ? destinationSpace.value
+        : this.destinationSpace,
+    destinationNodeId: destinationNodeId.present
+        ? destinationNodeId.value
+        : this.destinationNodeId,
+    destinationParentId: destinationParentId.present
+        ? destinationParentId.value
+        : this.destinationParentId,
+    createdAt: createdAt ?? this.createdAt,
+  );
+  PurchaseEvent copyWithCompanion(PurchaseEventsCompanion data) {
+    return PurchaseEvent(
+      id: data.id.present ? data.id.value : this.id,
+      inventoryId: data.inventoryId.present
+          ? data.inventoryId.value
+          : this.inventoryId,
+      needNodeId: data.needNodeId.present
+          ? data.needNodeId.value
+          : this.needNodeId,
+      eventType: data.eventType.present ? data.eventType.value : this.eventType,
+      quantity: data.quantity.present ? data.quantity.value : this.quantity,
+      targetPriceCents: data.targetPriceCents.present
+          ? data.targetPriceCents.value
+          : this.targetPriceCents,
+      paidPriceCents: data.paidPriceCents.present
+          ? data.paidPriceCents.value
+          : this.paidPriceCents,
+      destinationSpace: data.destinationSpace.present
+          ? data.destinationSpace.value
+          : this.destinationSpace,
+      destinationNodeId: data.destinationNodeId.present
+          ? data.destinationNodeId.value
+          : this.destinationNodeId,
+      destinationParentId: data.destinationParentId.present
+          ? data.destinationParentId.value
+          : this.destinationParentId,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PurchaseEvent(')
+          ..write('id: $id, ')
+          ..write('inventoryId: $inventoryId, ')
+          ..write('needNodeId: $needNodeId, ')
+          ..write('eventType: $eventType, ')
+          ..write('quantity: $quantity, ')
+          ..write('targetPriceCents: $targetPriceCents, ')
+          ..write('paidPriceCents: $paidPriceCents, ')
+          ..write('destinationSpace: $destinationSpace, ')
+          ..write('destinationNodeId: $destinationNodeId, ')
+          ..write('destinationParentId: $destinationParentId, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    inventoryId,
+    needNodeId,
+    eventType,
+    quantity,
+    targetPriceCents,
+    paidPriceCents,
+    destinationSpace,
+    destinationNodeId,
+    destinationParentId,
+    createdAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is PurchaseEvent &&
+          other.id == this.id &&
+          other.inventoryId == this.inventoryId &&
+          other.needNodeId == this.needNodeId &&
+          other.eventType == this.eventType &&
+          other.quantity == this.quantity &&
+          other.targetPriceCents == this.targetPriceCents &&
+          other.paidPriceCents == this.paidPriceCents &&
+          other.destinationSpace == this.destinationSpace &&
+          other.destinationNodeId == this.destinationNodeId &&
+          other.destinationParentId == this.destinationParentId &&
+          other.createdAt == this.createdAt);
+}
+
+class PurchaseEventsCompanion extends UpdateCompanion<PurchaseEvent> {
+  final Value<String> id;
+  final Value<String> inventoryId;
+  final Value<String> needNodeId;
+  final Value<String> eventType;
+  final Value<int> quantity;
+  final Value<int?> targetPriceCents;
+  final Value<int?> paidPriceCents;
+  final Value<String?> destinationSpace;
+  final Value<String?> destinationNodeId;
+  final Value<String?> destinationParentId;
+  final Value<String> createdAt;
+  final Value<int> rowid;
+  const PurchaseEventsCompanion({
+    this.id = const Value.absent(),
+    this.inventoryId = const Value.absent(),
+    this.needNodeId = const Value.absent(),
+    this.eventType = const Value.absent(),
+    this.quantity = const Value.absent(),
+    this.targetPriceCents = const Value.absent(),
+    this.paidPriceCents = const Value.absent(),
+    this.destinationSpace = const Value.absent(),
+    this.destinationNodeId = const Value.absent(),
+    this.destinationParentId = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  PurchaseEventsCompanion.insert({
+    required String id,
+    required String inventoryId,
+    required String needNodeId,
+    required String eventType,
+    required int quantity,
+    this.targetPriceCents = const Value.absent(),
+    this.paidPriceCents = const Value.absent(),
+    this.destinationSpace = const Value.absent(),
+    this.destinationNodeId = const Value.absent(),
+    this.destinationParentId = const Value.absent(),
+    required String createdAt,
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       inventoryId = Value(inventoryId),
+       needNodeId = Value(needNodeId),
+       eventType = Value(eventType),
+       quantity = Value(quantity),
+       createdAt = Value(createdAt);
+  static Insertable<PurchaseEvent> custom({
+    Expression<String>? id,
+    Expression<String>? inventoryId,
+    Expression<String>? needNodeId,
+    Expression<String>? eventType,
+    Expression<int>? quantity,
+    Expression<int>? targetPriceCents,
+    Expression<int>? paidPriceCents,
+    Expression<String>? destinationSpace,
+    Expression<String>? destinationNodeId,
+    Expression<String>? destinationParentId,
+    Expression<String>? createdAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (inventoryId != null) 'inventory_id': inventoryId,
+      if (needNodeId != null) 'need_node_id': needNodeId,
+      if (eventType != null) 'event_type': eventType,
+      if (quantity != null) 'quantity': quantity,
+      if (targetPriceCents != null) 'target_price_cents': targetPriceCents,
+      if (paidPriceCents != null) 'paid_price_cents': paidPriceCents,
+      if (destinationSpace != null) 'destination_space': destinationSpace,
+      if (destinationNodeId != null) 'destination_node_id': destinationNodeId,
+      if (destinationParentId != null)
+        'destination_parent_id': destinationParentId,
+      if (createdAt != null) 'created_at': createdAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  PurchaseEventsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? inventoryId,
+    Value<String>? needNodeId,
+    Value<String>? eventType,
+    Value<int>? quantity,
+    Value<int?>? targetPriceCents,
+    Value<int?>? paidPriceCents,
+    Value<String?>? destinationSpace,
+    Value<String?>? destinationNodeId,
+    Value<String?>? destinationParentId,
+    Value<String>? createdAt,
+    Value<int>? rowid,
+  }) {
+    return PurchaseEventsCompanion(
+      id: id ?? this.id,
+      inventoryId: inventoryId ?? this.inventoryId,
+      needNodeId: needNodeId ?? this.needNodeId,
+      eventType: eventType ?? this.eventType,
+      quantity: quantity ?? this.quantity,
+      targetPriceCents: targetPriceCents ?? this.targetPriceCents,
+      paidPriceCents: paidPriceCents ?? this.paidPriceCents,
+      destinationSpace: destinationSpace ?? this.destinationSpace,
+      destinationNodeId: destinationNodeId ?? this.destinationNodeId,
+      destinationParentId: destinationParentId ?? this.destinationParentId,
+      createdAt: createdAt ?? this.createdAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (inventoryId.present) {
+      map['inventory_id'] = Variable<String>(inventoryId.value);
+    }
+    if (needNodeId.present) {
+      map['need_node_id'] = Variable<String>(needNodeId.value);
+    }
+    if (eventType.present) {
+      map['event_type'] = Variable<String>(eventType.value);
+    }
+    if (quantity.present) {
+      map['quantity'] = Variable<int>(quantity.value);
+    }
+    if (targetPriceCents.present) {
+      map['target_price_cents'] = Variable<int>(targetPriceCents.value);
+    }
+    if (paidPriceCents.present) {
+      map['paid_price_cents'] = Variable<int>(paidPriceCents.value);
+    }
+    if (destinationSpace.present) {
+      map['destination_space'] = Variable<String>(destinationSpace.value);
+    }
+    if (destinationNodeId.present) {
+      map['destination_node_id'] = Variable<String>(destinationNodeId.value);
+    }
+    if (destinationParentId.present) {
+      map['destination_parent_id'] = Variable<String>(
+        destinationParentId.value,
+      );
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<String>(createdAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PurchaseEventsCompanion(')
+          ..write('id: $id, ')
+          ..write('inventoryId: $inventoryId, ')
+          ..write('needNodeId: $needNodeId, ')
+          ..write('eventType: $eventType, ')
+          ..write('quantity: $quantity, ')
+          ..write('targetPriceCents: $targetPriceCents, ')
+          ..write('paidPriceCents: $paidPriceCents, ')
+          ..write('destinationSpace: $destinationSpace, ')
+          ..write('destinationNodeId: $destinationNodeId, ')
+          ..write('destinationParentId: $destinationParentId, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $AppPreferencesTable extends AppPreferences
+    with TableInfo<$AppPreferencesTable, AppPreference> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $AppPreferencesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _keyMeta = const VerificationMeta('key');
+  @override
+  late final GeneratedColumn<String> key = GeneratedColumn<String>(
+    'key',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _valueMeta = const VerificationMeta('value');
+  @override
+  late final GeneratedColumn<String> value = GeneratedColumn<String>(
+    'value',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [key, value];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'app_preferences';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<AppPreference> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('key')) {
+      context.handle(
+        _keyMeta,
+        key.isAcceptableOrUnknown(data['key']!, _keyMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_keyMeta);
+    }
+    if (data.containsKey('value')) {
+      context.handle(
+        _valueMeta,
+        value.isAcceptableOrUnknown(data['value']!, _valueMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_valueMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {key};
+  @override
+  AppPreference map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return AppPreference(
+      key: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}key'],
+      )!,
+      value: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}value'],
+      )!,
+    );
+  }
+
+  @override
+  $AppPreferencesTable createAlias(String alias) {
+    return $AppPreferencesTable(attachedDatabase, alias);
+  }
+}
+
+class AppPreference extends DataClass implements Insertable<AppPreference> {
+  final String key;
+  final String value;
+  const AppPreference({required this.key, required this.value});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['key'] = Variable<String>(key);
+    map['value'] = Variable<String>(value);
+    return map;
+  }
+
+  AppPreferencesCompanion toCompanion(bool nullToAbsent) {
+    return AppPreferencesCompanion(key: Value(key), value: Value(value));
+  }
+
+  factory AppPreference.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return AppPreference(
+      key: serializer.fromJson<String>(json['key']),
+      value: serializer.fromJson<String>(json['value']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'key': serializer.toJson<String>(key),
+      'value': serializer.toJson<String>(value),
+    };
+  }
+
+  AppPreference copyWith({String? key, String? value}) =>
+      AppPreference(key: key ?? this.key, value: value ?? this.value);
+  AppPreference copyWithCompanion(AppPreferencesCompanion data) {
+    return AppPreference(
+      key: data.key.present ? data.key.value : this.key,
+      value: data.value.present ? data.value.value : this.value,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AppPreference(')
+          ..write('key: $key, ')
+          ..write('value: $value')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(key, value);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is AppPreference &&
+          other.key == this.key &&
+          other.value == this.value);
+}
+
+class AppPreferencesCompanion extends UpdateCompanion<AppPreference> {
+  final Value<String> key;
+  final Value<String> value;
+  final Value<int> rowid;
+  const AppPreferencesCompanion({
+    this.key = const Value.absent(),
+    this.value = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  AppPreferencesCompanion.insert({
+    required String key,
+    required String value,
+    this.rowid = const Value.absent(),
+  }) : key = Value(key),
+       value = Value(value);
+  static Insertable<AppPreference> custom({
+    Expression<String>? key,
+    Expression<String>? value,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (key != null) 'key': key,
+      if (value != null) 'value': value,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  AppPreferencesCompanion copyWith({
+    Value<String>? key,
+    Value<String>? value,
+    Value<int>? rowid,
+  }) {
+    return AppPreferencesCompanion(
+      key: key ?? this.key,
+      value: value ?? this.value,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (key.present) {
+      map['key'] = Variable<String>(key.value);
+    }
+    if (value.present) {
+      map['value'] = Variable<String>(value.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AppPreferencesCompanion(')
+          ..write('key: $key, ')
+          ..write('value: $value, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $NodeDocumentsTable extends NodeDocuments
+    with TableInfo<$NodeDocumentsTable, NodeDocumentRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $NodeDocumentsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _inventoryIdMeta = const VerificationMeta(
+    'inventoryId',
+  );
+  @override
+  late final GeneratedColumn<String> inventoryId = GeneratedColumn<String>(
+    'inventory_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES inventories (id) ON DELETE RESTRICT',
+    ),
+  );
+  static const VerificationMeta _nodeIdMeta = const VerificationMeta('nodeId');
+  @override
+  late final GeneratedColumn<String> nodeId = GeneratedColumn<String>(
+    'node_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _displayNameMeta = const VerificationMeta(
+    'displayName',
+  );
+  @override
+  late final GeneratedColumn<String> displayName = GeneratedColumn<String>(
+    'display_name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _relPathMeta = const VerificationMeta(
+    'relPath',
+  );
+  @override
+  late final GeneratedColumn<String> relPath = GeneratedColumn<String>(
+    'rel_path',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _mimeTypeMeta = const VerificationMeta(
+    'mimeType',
+  );
+  @override
+  late final GeneratedColumn<String> mimeType = GeneratedColumn<String>(
+    'mime_type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _byteSizeMeta = const VerificationMeta(
+    'byteSize',
+  );
+  @override
+  late final GeneratedColumn<int> byteSize = GeneratedColumn<int>(
+    'byte_size',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _sortIndexMeta = const VerificationMeta(
+    'sortIndex',
+  );
+  @override
+  late final GeneratedColumn<int> sortIndex = GeneratedColumn<int>(
+    'sort_index',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<String> createdAt = GeneratedColumn<String>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    inventoryId,
+    nodeId,
+    displayName,
+    relPath,
+    mimeType,
+    byteSize,
+    sortIndex,
+    createdAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'node_documents';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<NodeDocumentRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('inventory_id')) {
+      context.handle(
+        _inventoryIdMeta,
+        inventoryId.isAcceptableOrUnknown(
+          data['inventory_id']!,
+          _inventoryIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_inventoryIdMeta);
+    }
+    if (data.containsKey('node_id')) {
+      context.handle(
+        _nodeIdMeta,
+        nodeId.isAcceptableOrUnknown(data['node_id']!, _nodeIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nodeIdMeta);
+    }
+    if (data.containsKey('display_name')) {
+      context.handle(
+        _displayNameMeta,
+        displayName.isAcceptableOrUnknown(
+          data['display_name']!,
+          _displayNameMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_displayNameMeta);
+    }
+    if (data.containsKey('rel_path')) {
+      context.handle(
+        _relPathMeta,
+        relPath.isAcceptableOrUnknown(data['rel_path']!, _relPathMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_relPathMeta);
+    }
+    if (data.containsKey('mime_type')) {
+      context.handle(
+        _mimeTypeMeta,
+        mimeType.isAcceptableOrUnknown(data['mime_type']!, _mimeTypeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_mimeTypeMeta);
+    }
+    if (data.containsKey('byte_size')) {
+      context.handle(
+        _byteSizeMeta,
+        byteSize.isAcceptableOrUnknown(data['byte_size']!, _byteSizeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_byteSizeMeta);
+    }
+    if (data.containsKey('sort_index')) {
+      context.handle(
+        _sortIndexMeta,
+        sortIndex.isAcceptableOrUnknown(data['sort_index']!, _sortIndexMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  NodeDocumentRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return NodeDocumentRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      inventoryId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}inventory_id'],
+      )!,
+      nodeId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}node_id'],
+      )!,
+      displayName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}display_name'],
+      )!,
+      relPath: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}rel_path'],
+      )!,
+      mimeType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}mime_type'],
+      )!,
+      byteSize: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}byte_size'],
+      )!,
+      sortIndex: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}sort_index'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}created_at'],
+      )!,
+    );
+  }
+
+  @override
+  $NodeDocumentsTable createAlias(String alias) {
+    return $NodeDocumentsTable(attachedDatabase, alias);
+  }
+}
+
+class NodeDocumentRow extends DataClass implements Insertable<NodeDocumentRow> {
+  final String id;
+  final String inventoryId;
+  final String nodeId;
+
+  /// Original display name when available.
+  final String displayName;
+
+  /// Relative path under app support (`documents/….ext`).
+  final String relPath;
+  final String mimeType;
+  final int byteSize;
+  final int sortIndex;
+  final String createdAt;
+  const NodeDocumentRow({
+    required this.id,
+    required this.inventoryId,
+    required this.nodeId,
+    required this.displayName,
+    required this.relPath,
+    required this.mimeType,
+    required this.byteSize,
+    required this.sortIndex,
+    required this.createdAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['inventory_id'] = Variable<String>(inventoryId);
+    map['node_id'] = Variable<String>(nodeId);
+    map['display_name'] = Variable<String>(displayName);
+    map['rel_path'] = Variable<String>(relPath);
+    map['mime_type'] = Variable<String>(mimeType);
+    map['byte_size'] = Variable<int>(byteSize);
+    map['sort_index'] = Variable<int>(sortIndex);
+    map['created_at'] = Variable<String>(createdAt);
+    return map;
+  }
+
+  NodeDocumentsCompanion toCompanion(bool nullToAbsent) {
+    return NodeDocumentsCompanion(
+      id: Value(id),
+      inventoryId: Value(inventoryId),
+      nodeId: Value(nodeId),
+      displayName: Value(displayName),
+      relPath: Value(relPath),
+      mimeType: Value(mimeType),
+      byteSize: Value(byteSize),
+      sortIndex: Value(sortIndex),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory NodeDocumentRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return NodeDocumentRow(
+      id: serializer.fromJson<String>(json['id']),
+      inventoryId: serializer.fromJson<String>(json['inventoryId']),
+      nodeId: serializer.fromJson<String>(json['nodeId']),
+      displayName: serializer.fromJson<String>(json['displayName']),
+      relPath: serializer.fromJson<String>(json['relPath']),
+      mimeType: serializer.fromJson<String>(json['mimeType']),
+      byteSize: serializer.fromJson<int>(json['byteSize']),
+      sortIndex: serializer.fromJson<int>(json['sortIndex']),
+      createdAt: serializer.fromJson<String>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'inventoryId': serializer.toJson<String>(inventoryId),
+      'nodeId': serializer.toJson<String>(nodeId),
+      'displayName': serializer.toJson<String>(displayName),
+      'relPath': serializer.toJson<String>(relPath),
+      'mimeType': serializer.toJson<String>(mimeType),
+      'byteSize': serializer.toJson<int>(byteSize),
+      'sortIndex': serializer.toJson<int>(sortIndex),
+      'createdAt': serializer.toJson<String>(createdAt),
+    };
+  }
+
+  NodeDocumentRow copyWith({
+    String? id,
+    String? inventoryId,
+    String? nodeId,
+    String? displayName,
+    String? relPath,
+    String? mimeType,
+    int? byteSize,
+    int? sortIndex,
+    String? createdAt,
+  }) => NodeDocumentRow(
+    id: id ?? this.id,
+    inventoryId: inventoryId ?? this.inventoryId,
+    nodeId: nodeId ?? this.nodeId,
+    displayName: displayName ?? this.displayName,
+    relPath: relPath ?? this.relPath,
+    mimeType: mimeType ?? this.mimeType,
+    byteSize: byteSize ?? this.byteSize,
+    sortIndex: sortIndex ?? this.sortIndex,
+    createdAt: createdAt ?? this.createdAt,
+  );
+  NodeDocumentRow copyWithCompanion(NodeDocumentsCompanion data) {
+    return NodeDocumentRow(
+      id: data.id.present ? data.id.value : this.id,
+      inventoryId: data.inventoryId.present
+          ? data.inventoryId.value
+          : this.inventoryId,
+      nodeId: data.nodeId.present ? data.nodeId.value : this.nodeId,
+      displayName: data.displayName.present
+          ? data.displayName.value
+          : this.displayName,
+      relPath: data.relPath.present ? data.relPath.value : this.relPath,
+      mimeType: data.mimeType.present ? data.mimeType.value : this.mimeType,
+      byteSize: data.byteSize.present ? data.byteSize.value : this.byteSize,
+      sortIndex: data.sortIndex.present ? data.sortIndex.value : this.sortIndex,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('NodeDocumentRow(')
+          ..write('id: $id, ')
+          ..write('inventoryId: $inventoryId, ')
+          ..write('nodeId: $nodeId, ')
+          ..write('displayName: $displayName, ')
+          ..write('relPath: $relPath, ')
+          ..write('mimeType: $mimeType, ')
+          ..write('byteSize: $byteSize, ')
+          ..write('sortIndex: $sortIndex, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    inventoryId,
+    nodeId,
+    displayName,
+    relPath,
+    mimeType,
+    byteSize,
+    sortIndex,
+    createdAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is NodeDocumentRow &&
+          other.id == this.id &&
+          other.inventoryId == this.inventoryId &&
+          other.nodeId == this.nodeId &&
+          other.displayName == this.displayName &&
+          other.relPath == this.relPath &&
+          other.mimeType == this.mimeType &&
+          other.byteSize == this.byteSize &&
+          other.sortIndex == this.sortIndex &&
+          other.createdAt == this.createdAt);
+}
+
+class NodeDocumentsCompanion extends UpdateCompanion<NodeDocumentRow> {
+  final Value<String> id;
+  final Value<String> inventoryId;
+  final Value<String> nodeId;
+  final Value<String> displayName;
+  final Value<String> relPath;
+  final Value<String> mimeType;
+  final Value<int> byteSize;
+  final Value<int> sortIndex;
+  final Value<String> createdAt;
+  final Value<int> rowid;
+  const NodeDocumentsCompanion({
+    this.id = const Value.absent(),
+    this.inventoryId = const Value.absent(),
+    this.nodeId = const Value.absent(),
+    this.displayName = const Value.absent(),
+    this.relPath = const Value.absent(),
+    this.mimeType = const Value.absent(),
+    this.byteSize = const Value.absent(),
+    this.sortIndex = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  NodeDocumentsCompanion.insert({
+    required String id,
+    required String inventoryId,
+    required String nodeId,
+    required String displayName,
+    required String relPath,
+    required String mimeType,
+    required int byteSize,
+    this.sortIndex = const Value.absent(),
+    required String createdAt,
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       inventoryId = Value(inventoryId),
+       nodeId = Value(nodeId),
+       displayName = Value(displayName),
+       relPath = Value(relPath),
+       mimeType = Value(mimeType),
+       byteSize = Value(byteSize),
+       createdAt = Value(createdAt);
+  static Insertable<NodeDocumentRow> custom({
+    Expression<String>? id,
+    Expression<String>? inventoryId,
+    Expression<String>? nodeId,
+    Expression<String>? displayName,
+    Expression<String>? relPath,
+    Expression<String>? mimeType,
+    Expression<int>? byteSize,
+    Expression<int>? sortIndex,
+    Expression<String>? createdAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (inventoryId != null) 'inventory_id': inventoryId,
+      if (nodeId != null) 'node_id': nodeId,
+      if (displayName != null) 'display_name': displayName,
+      if (relPath != null) 'rel_path': relPath,
+      if (mimeType != null) 'mime_type': mimeType,
+      if (byteSize != null) 'byte_size': byteSize,
+      if (sortIndex != null) 'sort_index': sortIndex,
+      if (createdAt != null) 'created_at': createdAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  NodeDocumentsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? inventoryId,
+    Value<String>? nodeId,
+    Value<String>? displayName,
+    Value<String>? relPath,
+    Value<String>? mimeType,
+    Value<int>? byteSize,
+    Value<int>? sortIndex,
+    Value<String>? createdAt,
+    Value<int>? rowid,
+  }) {
+    return NodeDocumentsCompanion(
+      id: id ?? this.id,
+      inventoryId: inventoryId ?? this.inventoryId,
+      nodeId: nodeId ?? this.nodeId,
+      displayName: displayName ?? this.displayName,
+      relPath: relPath ?? this.relPath,
+      mimeType: mimeType ?? this.mimeType,
+      byteSize: byteSize ?? this.byteSize,
+      sortIndex: sortIndex ?? this.sortIndex,
+      createdAt: createdAt ?? this.createdAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (inventoryId.present) {
+      map['inventory_id'] = Variable<String>(inventoryId.value);
+    }
+    if (nodeId.present) {
+      map['node_id'] = Variable<String>(nodeId.value);
+    }
+    if (displayName.present) {
+      map['display_name'] = Variable<String>(displayName.value);
+    }
+    if (relPath.present) {
+      map['rel_path'] = Variable<String>(relPath.value);
+    }
+    if (mimeType.present) {
+      map['mime_type'] = Variable<String>(mimeType.value);
+    }
+    if (byteSize.present) {
+      map['byte_size'] = Variable<int>(byteSize.value);
+    }
+    if (sortIndex.present) {
+      map['sort_index'] = Variable<int>(sortIndex.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<String>(createdAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('NodeDocumentsCompanion(')
+          ..write('id: $id, ')
+          ..write('inventoryId: $inventoryId, ')
+          ..write('nodeId: $nodeId, ')
+          ..write('displayName: $displayName, ')
+          ..write('relPath: $relPath, ')
+          ..write('mimeType: $mimeType, ')
+          ..write('byteSize: $byteSize, ')
+          ..write('sortIndex: $sortIndex, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$InventoryDatabase extends GeneratedDatabase {
   _$InventoryDatabase(QueryExecutor e) : super(e);
   $InventoryDatabaseManager get managers => $InventoryDatabaseManager(this);
@@ -3151,6 +5255,9 @@ abstract class _$InventoryDatabase extends GeneratedDatabase {
   late final $RestorationJournalEntriesTable restorationJournalEntries =
       $RestorationJournalEntriesTable(this);
   late final $StockMovementsTable stockMovements = $StockMovementsTable(this);
+  late final $PurchaseEventsTable purchaseEvents = $PurchaseEventsTable(this);
+  late final $AppPreferencesTable appPreferences = $AppPreferencesTable(this);
+  late final $NodeDocumentsTable nodeDocuments = $NodeDocumentsTable(this);
   late final Index nodesParentIdx = Index(
     'nodes_parent_idx',
     'CREATE INDEX nodes_parent_idx ON nodes (inventory_id, parent_id)',
@@ -3167,6 +5274,14 @@ abstract class _$InventoryDatabase extends GeneratedDatabase {
     'stock_movements_node_idx',
     'CREATE INDEX stock_movements_node_idx ON stock_movements (inventory_id, node_id, created_at)',
   );
+  late final Index purchaseEventsNeedIdx = Index(
+    'purchase_events_need_idx',
+    'CREATE INDEX purchase_events_need_idx ON purchase_events (inventory_id, need_node_id, created_at)',
+  );
+  late final Index nodeDocumentsNodeIdx = Index(
+    'node_documents_node_idx',
+    'CREATE INDEX node_documents_node_idx ON node_documents (inventory_id, node_id, sort_index)',
+  );
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -3179,10 +5294,15 @@ abstract class _$InventoryDatabase extends GeneratedDatabase {
     localVerificationEntries,
     restorationJournalEntries,
     stockMovements,
+    purchaseEvents,
+    appPreferences,
+    nodeDocuments,
     nodesParentIdx,
     nodesActiveNameIdx,
     nodeCategoriesCategoryIdx,
     stockMovementsNodeIdx,
+    purchaseEventsNeedIdx,
+    nodeDocumentsNodeIdx,
   ];
 }
 
@@ -3258,6 +5378,44 @@ final class $$InventoriesTableReferences
     ).filter((f) => f.inventoryId.id.sqlEquals($_itemColumn<String>('id')!));
 
     final cache = $_typedResult.readTableOrNull(_stockMovementsRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$PurchaseEventsTable, List<PurchaseEvent>>
+  _purchaseEventsRefsTable(_$InventoryDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.purchaseEvents,
+        aliasName: 'inventories__id__purchase_events__inventory_id',
+      );
+
+  $$PurchaseEventsTableProcessedTableManager get purchaseEventsRefs {
+    final manager = $$PurchaseEventsTableTableManager(
+      $_db,
+      $_db.purchaseEvents,
+    ).filter((f) => f.inventoryId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_purchaseEventsRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$NodeDocumentsTable, List<NodeDocumentRow>>
+  _nodeDocumentsRefsTable(_$InventoryDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.nodeDocuments,
+        aliasName: 'inventories__id__node_documents__inventory_id',
+      );
+
+  $$NodeDocumentsTableProcessedTableManager get nodeDocumentsRefs {
+    final manager = $$NodeDocumentsTableTableManager(
+      $_db,
+      $_db.nodeDocuments,
+    ).filter((f) => f.inventoryId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_nodeDocumentsRefsTable($_db));
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: cache),
     );
@@ -3359,6 +5517,56 @@ class $$InventoriesTableFilterComposer
           }) => $$StockMovementsTableFilterComposer(
             $db: $db,
             $table: $db.stockMovements,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> purchaseEventsRefs(
+    Expression<bool> Function($$PurchaseEventsTableFilterComposer f) f,
+  ) {
+    final $$PurchaseEventsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.purchaseEvents,
+      getReferencedColumn: (t) => t.inventoryId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$PurchaseEventsTableFilterComposer(
+            $db: $db,
+            $table: $db.purchaseEvents,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> nodeDocumentsRefs(
+    Expression<bool> Function($$NodeDocumentsTableFilterComposer f) f,
+  ) {
+    final $$NodeDocumentsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.nodeDocuments,
+      getReferencedColumn: (t) => t.inventoryId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$NodeDocumentsTableFilterComposer(
+            $db: $db,
+            $table: $db.nodeDocuments,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -3496,6 +5704,56 @@ class $$InventoriesTableAnnotationComposer
     );
     return f(composer);
   }
+
+  Expression<T> purchaseEventsRefs<T extends Object>(
+    Expression<T> Function($$PurchaseEventsTableAnnotationComposer a) f,
+  ) {
+    final $$PurchaseEventsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.purchaseEvents,
+      getReferencedColumn: (t) => t.inventoryId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$PurchaseEventsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.purchaseEvents,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<T> nodeDocumentsRefs<T extends Object>(
+    Expression<T> Function($$NodeDocumentsTableAnnotationComposer a) f,
+  ) {
+    final $$NodeDocumentsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.nodeDocuments,
+      getReferencedColumn: (t) => t.inventoryId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$NodeDocumentsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.nodeDocuments,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$InventoriesTableTableManager
@@ -3515,6 +5773,8 @@ class $$InventoriesTableTableManager
             bool nodesRefs,
             bool categoriesRefs,
             bool stockMovementsRefs,
+            bool purchaseEventsRefs,
+            bool nodeDocumentsRefs,
           })
         > {
   $$InventoriesTableTableManager(
@@ -3571,6 +5831,8 @@ class $$InventoriesTableTableManager
                 nodesRefs = false,
                 categoriesRefs = false,
                 stockMovementsRefs = false,
+                purchaseEventsRefs = false,
+                nodeDocumentsRefs = false,
               }) {
                 return PrefetchHooks(
                   db: db,
@@ -3578,6 +5840,8 @@ class $$InventoriesTableTableManager
                     if (nodesRefs) db.nodes,
                     if (categoriesRefs) db.categories,
                     if (stockMovementsRefs) db.stockMovements,
+                    if (purchaseEventsRefs) db.purchaseEvents,
+                    if (nodeDocumentsRefs) db.nodeDocuments,
                   ],
                   addJoins: null,
                   getPrefetchedDataCallback: (items) async {
@@ -3642,6 +5906,46 @@ class $$InventoriesTableTableManager
                           referencedColumn: 'inventory_id',
                           typedResults: items,
                         ),
+                      if (purchaseEventsRefs)
+                        await $_getPrefetchedDataByColumns<
+                          Inventory,
+                          $InventoriesTable,
+                          PurchaseEvent,
+                          $PurchaseEventsTable
+                        >(
+                          currentTable: table,
+                          referencedTable: $$InventoriesTableReferences
+                              ._purchaseEventsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$InventoriesTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).purchaseEventsRefs,
+                          currentColumn: 'id',
+                          referencedColumn: 'inventory_id',
+                          typedResults: items,
+                        ),
+                      if (nodeDocumentsRefs)
+                        await $_getPrefetchedDataByColumns<
+                          Inventory,
+                          $InventoriesTable,
+                          NodeDocumentRow,
+                          $NodeDocumentsTable
+                        >(
+                          currentTable: table,
+                          referencedTable: $$InventoriesTableReferences
+                              ._nodeDocumentsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$InventoriesTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).nodeDocumentsRefs,
+                          currentColumn: 'id',
+                          referencedColumn: 'inventory_id',
+                          typedResults: items,
+                        ),
                     ];
                   },
                 );
@@ -3666,6 +5970,8 @@ typedef $$InventoriesTableProcessedTableManager =
         bool nodesRefs,
         bool categoriesRefs,
         bool stockMovementsRefs,
+        bool purchaseEventsRefs,
+        bool nodeDocumentsRefs,
       })
     >;
 typedef $$NodesTableCreateCompanionBuilder =
@@ -3685,6 +5991,17 @@ typedef $$NodesTableCreateCompanionBuilder =
       Value<String?> stockUnit,
       Value<int?> unitCostCents,
       Value<int?> stockReference,
+      Value<int?> desiredQuantity,
+      Value<int?> targetPriceCents,
+      Value<int> siblingOrder,
+      Value<bool> showAdvanced,
+      Value<String?> barcodeRef,
+      Value<String?> purchaseDate,
+      Value<int?> purchasePriceCents,
+      Value<String?> purchasePlace,
+      Value<String> objective,
+      Value<String?> photoRelPath,
+      Value<String?> iconKey,
       Value<String> status,
       Value<String?> withdrawalReason,
       Value<String?> withdrawnAt,
@@ -3709,6 +6026,17 @@ typedef $$NodesTableUpdateCompanionBuilder =
       Value<String?> stockUnit,
       Value<int?> unitCostCents,
       Value<int?> stockReference,
+      Value<int?> desiredQuantity,
+      Value<int?> targetPriceCents,
+      Value<int> siblingOrder,
+      Value<bool> showAdvanced,
+      Value<String?> barcodeRef,
+      Value<String?> purchaseDate,
+      Value<int?> purchasePriceCents,
+      Value<String?> purchasePlace,
+      Value<String> objective,
+      Value<String?> photoRelPath,
+      Value<String?> iconKey,
       Value<String> status,
       Value<String?> withdrawalReason,
       Value<String?> withdrawnAt,
@@ -3815,6 +6143,61 @@ class $$NodesTableFilterComposer
 
   ColumnFilters<int> get stockReference => $composableBuilder(
     column: $table.stockReference,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get desiredQuantity => $composableBuilder(
+    column: $table.desiredQuantity,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get targetPriceCents => $composableBuilder(
+    column: $table.targetPriceCents,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get siblingOrder => $composableBuilder(
+    column: $table.siblingOrder,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get showAdvanced => $composableBuilder(
+    column: $table.showAdvanced,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get barcodeRef => $composableBuilder(
+    column: $table.barcodeRef,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get purchaseDate => $composableBuilder(
+    column: $table.purchaseDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get purchasePriceCents => $composableBuilder(
+    column: $table.purchasePriceCents,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get purchasePlace => $composableBuilder(
+    column: $table.purchasePlace,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get objective => $composableBuilder(
+    column: $table.objective,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get photoRelPath => $composableBuilder(
+    column: $table.photoRelPath,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get iconKey => $composableBuilder(
+    column: $table.iconKey,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -3946,6 +6329,61 @@ class $$NodesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get desiredQuantity => $composableBuilder(
+    column: $table.desiredQuantity,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get targetPriceCents => $composableBuilder(
+    column: $table.targetPriceCents,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get siblingOrder => $composableBuilder(
+    column: $table.siblingOrder,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get showAdvanced => $composableBuilder(
+    column: $table.showAdvanced,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get barcodeRef => $composableBuilder(
+    column: $table.barcodeRef,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get purchaseDate => $composableBuilder(
+    column: $table.purchaseDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get purchasePriceCents => $composableBuilder(
+    column: $table.purchasePriceCents,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get purchasePlace => $composableBuilder(
+    column: $table.purchasePlace,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get objective => $composableBuilder(
+    column: $table.objective,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get photoRelPath => $composableBuilder(
+    column: $table.photoRelPath,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get iconKey => $composableBuilder(
+    column: $table.iconKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get status => $composableBuilder(
     column: $table.status,
     builder: (column) => ColumnOrderings(column),
@@ -4056,6 +6494,57 @@ class $$NodesTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<int> get desiredQuantity => $composableBuilder(
+    column: $table.desiredQuantity,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get targetPriceCents => $composableBuilder(
+    column: $table.targetPriceCents,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get siblingOrder => $composableBuilder(
+    column: $table.siblingOrder,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get showAdvanced => $composableBuilder(
+    column: $table.showAdvanced,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get barcodeRef => $composableBuilder(
+    column: $table.barcodeRef,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get purchaseDate => $composableBuilder(
+    column: $table.purchaseDate,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get purchasePriceCents => $composableBuilder(
+    column: $table.purchasePriceCents,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get purchasePlace => $composableBuilder(
+    column: $table.purchasePlace,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get objective =>
+      $composableBuilder(column: $table.objective, builder: (column) => column);
+
+  GeneratedColumn<String> get photoRelPath => $composableBuilder(
+    column: $table.photoRelPath,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get iconKey =>
+      $composableBuilder(column: $table.iconKey, builder: (column) => column);
+
   GeneratedColumn<String> get status =>
       $composableBuilder(column: $table.status, builder: (column) => column);
 
@@ -4142,6 +6631,17 @@ class $$NodesTableTableManager
                 Value<String?> stockUnit = const Value.absent(),
                 Value<int?> unitCostCents = const Value.absent(),
                 Value<int?> stockReference = const Value.absent(),
+                Value<int?> desiredQuantity = const Value.absent(),
+                Value<int?> targetPriceCents = const Value.absent(),
+                Value<int> siblingOrder = const Value.absent(),
+                Value<bool> showAdvanced = const Value.absent(),
+                Value<String?> barcodeRef = const Value.absent(),
+                Value<String?> purchaseDate = const Value.absent(),
+                Value<int?> purchasePriceCents = const Value.absent(),
+                Value<String?> purchasePlace = const Value.absent(),
+                Value<String> objective = const Value.absent(),
+                Value<String?> photoRelPath = const Value.absent(),
+                Value<String?> iconKey = const Value.absent(),
                 Value<String> status = const Value.absent(),
                 Value<String?> withdrawalReason = const Value.absent(),
                 Value<String?> withdrawnAt = const Value.absent(),
@@ -4164,6 +6664,17 @@ class $$NodesTableTableManager
                 stockUnit: stockUnit,
                 unitCostCents: unitCostCents,
                 stockReference: stockReference,
+                desiredQuantity: desiredQuantity,
+                targetPriceCents: targetPriceCents,
+                siblingOrder: siblingOrder,
+                showAdvanced: showAdvanced,
+                barcodeRef: barcodeRef,
+                purchaseDate: purchaseDate,
+                purchasePriceCents: purchasePriceCents,
+                purchasePlace: purchasePlace,
+                objective: objective,
+                photoRelPath: photoRelPath,
+                iconKey: iconKey,
                 status: status,
                 withdrawalReason: withdrawalReason,
                 withdrawnAt: withdrawnAt,
@@ -4188,6 +6699,17 @@ class $$NodesTableTableManager
                 Value<String?> stockUnit = const Value.absent(),
                 Value<int?> unitCostCents = const Value.absent(),
                 Value<int?> stockReference = const Value.absent(),
+                Value<int?> desiredQuantity = const Value.absent(),
+                Value<int?> targetPriceCents = const Value.absent(),
+                Value<int> siblingOrder = const Value.absent(),
+                Value<bool> showAdvanced = const Value.absent(),
+                Value<String?> barcodeRef = const Value.absent(),
+                Value<String?> purchaseDate = const Value.absent(),
+                Value<int?> purchasePriceCents = const Value.absent(),
+                Value<String?> purchasePlace = const Value.absent(),
+                Value<String> objective = const Value.absent(),
+                Value<String?> photoRelPath = const Value.absent(),
+                Value<String?> iconKey = const Value.absent(),
                 Value<String> status = const Value.absent(),
                 Value<String?> withdrawalReason = const Value.absent(),
                 Value<String?> withdrawnAt = const Value.absent(),
@@ -4210,6 +6732,17 @@ class $$NodesTableTableManager
                 stockUnit: stockUnit,
                 unitCostCents: unitCostCents,
                 stockReference: stockReference,
+                desiredQuantity: desiredQuantity,
+                targetPriceCents: targetPriceCents,
+                siblingOrder: siblingOrder,
+                showAdvanced: showAdvanced,
+                barcodeRef: barcodeRef,
+                purchaseDate: purchaseDate,
+                purchasePriceCents: purchasePriceCents,
+                purchasePlace: purchasePlace,
+                objective: objective,
+                photoRelPath: photoRelPath,
+                iconKey: iconKey,
                 status: status,
                 withdrawalReason: withdrawalReason,
                 withdrawnAt: withdrawnAt,
@@ -5533,6 +8066,1028 @@ typedef $$StockMovementsTableProcessedTableManager =
       StockMovement,
       PrefetchHooks Function({bool inventoryId})
     >;
+typedef $$PurchaseEventsTableCreateCompanionBuilder =
+    PurchaseEventsCompanion Function({
+      required String id,
+      required String inventoryId,
+      required String needNodeId,
+      required String eventType,
+      required int quantity,
+      Value<int?> targetPriceCents,
+      Value<int?> paidPriceCents,
+      Value<String?> destinationSpace,
+      Value<String?> destinationNodeId,
+      Value<String?> destinationParentId,
+      required String createdAt,
+      Value<int> rowid,
+    });
+typedef $$PurchaseEventsTableUpdateCompanionBuilder =
+    PurchaseEventsCompanion Function({
+      Value<String> id,
+      Value<String> inventoryId,
+      Value<String> needNodeId,
+      Value<String> eventType,
+      Value<int> quantity,
+      Value<int?> targetPriceCents,
+      Value<int?> paidPriceCents,
+      Value<String?> destinationSpace,
+      Value<String?> destinationNodeId,
+      Value<String?> destinationParentId,
+      Value<String> createdAt,
+      Value<int> rowid,
+    });
+
+final class $$PurchaseEventsTableReferences
+    extends
+        BaseReferences<
+          _$InventoryDatabase,
+          $PurchaseEventsTable,
+          PurchaseEvent
+        > {
+  $$PurchaseEventsTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $InventoriesTable _inventoryIdTable(_$InventoryDatabase db) => db
+      .inventories
+      .createAlias('purchase_events__inventory_id__inventories__id');
+
+  $$InventoriesTableProcessedTableManager get inventoryId {
+    final $_column = $_itemColumn<String>('inventory_id')!;
+
+    final manager = $$InventoriesTableTableManager(
+      $_db,
+      $_db.inventories,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_inventoryIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$PurchaseEventsTableFilterComposer
+    extends Composer<_$InventoryDatabase, $PurchaseEventsTable> {
+  $$PurchaseEventsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get needNodeId => $composableBuilder(
+    column: $table.needNodeId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get eventType => $composableBuilder(
+    column: $table.eventType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get quantity => $composableBuilder(
+    column: $table.quantity,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get targetPriceCents => $composableBuilder(
+    column: $table.targetPriceCents,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get paidPriceCents => $composableBuilder(
+    column: $table.paidPriceCents,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get destinationSpace => $composableBuilder(
+    column: $table.destinationSpace,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get destinationNodeId => $composableBuilder(
+    column: $table.destinationNodeId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get destinationParentId => $composableBuilder(
+    column: $table.destinationParentId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$InventoriesTableFilterComposer get inventoryId {
+    final $$InventoriesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.inventoryId,
+      referencedTable: $db.inventories,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$InventoriesTableFilterComposer(
+            $db: $db,
+            $table: $db.inventories,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$PurchaseEventsTableOrderingComposer
+    extends Composer<_$InventoryDatabase, $PurchaseEventsTable> {
+  $$PurchaseEventsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get needNodeId => $composableBuilder(
+    column: $table.needNodeId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get eventType => $composableBuilder(
+    column: $table.eventType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get quantity => $composableBuilder(
+    column: $table.quantity,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get targetPriceCents => $composableBuilder(
+    column: $table.targetPriceCents,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get paidPriceCents => $composableBuilder(
+    column: $table.paidPriceCents,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get destinationSpace => $composableBuilder(
+    column: $table.destinationSpace,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get destinationNodeId => $composableBuilder(
+    column: $table.destinationNodeId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get destinationParentId => $composableBuilder(
+    column: $table.destinationParentId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$InventoriesTableOrderingComposer get inventoryId {
+    final $$InventoriesTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.inventoryId,
+      referencedTable: $db.inventories,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$InventoriesTableOrderingComposer(
+            $db: $db,
+            $table: $db.inventories,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$PurchaseEventsTableAnnotationComposer
+    extends Composer<_$InventoryDatabase, $PurchaseEventsTable> {
+  $$PurchaseEventsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get needNodeId => $composableBuilder(
+    column: $table.needNodeId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get eventType =>
+      $composableBuilder(column: $table.eventType, builder: (column) => column);
+
+  GeneratedColumn<int> get quantity =>
+      $composableBuilder(column: $table.quantity, builder: (column) => column);
+
+  GeneratedColumn<int> get targetPriceCents => $composableBuilder(
+    column: $table.targetPriceCents,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get paidPriceCents => $composableBuilder(
+    column: $table.paidPriceCents,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get destinationSpace => $composableBuilder(
+    column: $table.destinationSpace,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get destinationNodeId => $composableBuilder(
+    column: $table.destinationNodeId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get destinationParentId => $composableBuilder(
+    column: $table.destinationParentId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  $$InventoriesTableAnnotationComposer get inventoryId {
+    final $$InventoriesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.inventoryId,
+      referencedTable: $db.inventories,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$InventoriesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.inventories,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$PurchaseEventsTableTableManager
+    extends
+        RootTableManager<
+          _$InventoryDatabase,
+          $PurchaseEventsTable,
+          PurchaseEvent,
+          $$PurchaseEventsTableFilterComposer,
+          $$PurchaseEventsTableOrderingComposer,
+          $$PurchaseEventsTableAnnotationComposer,
+          $$PurchaseEventsTableCreateCompanionBuilder,
+          $$PurchaseEventsTableUpdateCompanionBuilder,
+          (PurchaseEvent, $$PurchaseEventsTableReferences),
+          PurchaseEvent,
+          PrefetchHooks Function({bool inventoryId})
+        > {
+  $$PurchaseEventsTableTableManager(
+    _$InventoryDatabase db,
+    $PurchaseEventsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$PurchaseEventsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$PurchaseEventsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$PurchaseEventsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> inventoryId = const Value.absent(),
+                Value<String> needNodeId = const Value.absent(),
+                Value<String> eventType = const Value.absent(),
+                Value<int> quantity = const Value.absent(),
+                Value<int?> targetPriceCents = const Value.absent(),
+                Value<int?> paidPriceCents = const Value.absent(),
+                Value<String?> destinationSpace = const Value.absent(),
+                Value<String?> destinationNodeId = const Value.absent(),
+                Value<String?> destinationParentId = const Value.absent(),
+                Value<String> createdAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => PurchaseEventsCompanion(
+                id: id,
+                inventoryId: inventoryId,
+                needNodeId: needNodeId,
+                eventType: eventType,
+                quantity: quantity,
+                targetPriceCents: targetPriceCents,
+                paidPriceCents: paidPriceCents,
+                destinationSpace: destinationSpace,
+                destinationNodeId: destinationNodeId,
+                destinationParentId: destinationParentId,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String inventoryId,
+                required String needNodeId,
+                required String eventType,
+                required int quantity,
+                Value<int?> targetPriceCents = const Value.absent(),
+                Value<int?> paidPriceCents = const Value.absent(),
+                Value<String?> destinationSpace = const Value.absent(),
+                Value<String?> destinationNodeId = const Value.absent(),
+                Value<String?> destinationParentId = const Value.absent(),
+                required String createdAt,
+                Value<int> rowid = const Value.absent(),
+              }) => PurchaseEventsCompanion.insert(
+                id: id,
+                inventoryId: inventoryId,
+                needNodeId: needNodeId,
+                eventType: eventType,
+                quantity: quantity,
+                targetPriceCents: targetPriceCents,
+                paidPriceCents: paidPriceCents,
+                destinationSpace: destinationSpace,
+                destinationNodeId: destinationNodeId,
+                destinationParentId: destinationParentId,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$PurchaseEventsTable, PurchaseEvent>(table),
+                  $$PurchaseEventsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({inventoryId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (inventoryId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.inventoryId,
+                                referencedTable: $$PurchaseEventsTableReferences
+                                    ._inventoryIdTable(db),
+                                referencedColumn:
+                                    $$PurchaseEventsTableReferences
+                                        ._inventoryIdTable(db)
+                                        .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$PurchaseEventsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$InventoryDatabase,
+      $PurchaseEventsTable,
+      PurchaseEvent,
+      $$PurchaseEventsTableFilterComposer,
+      $$PurchaseEventsTableOrderingComposer,
+      $$PurchaseEventsTableAnnotationComposer,
+      $$PurchaseEventsTableCreateCompanionBuilder,
+      $$PurchaseEventsTableUpdateCompanionBuilder,
+      (PurchaseEvent, $$PurchaseEventsTableReferences),
+      PurchaseEvent,
+      PrefetchHooks Function({bool inventoryId})
+    >;
+typedef $$AppPreferencesTableCreateCompanionBuilder =
+    AppPreferencesCompanion Function({
+      required String key,
+      required String value,
+      Value<int> rowid,
+    });
+typedef $$AppPreferencesTableUpdateCompanionBuilder =
+    AppPreferencesCompanion Function({
+      Value<String> key,
+      Value<String> value,
+      Value<int> rowid,
+    });
+
+class $$AppPreferencesTableFilterComposer
+    extends Composer<_$InventoryDatabase, $AppPreferencesTable> {
+  $$AppPreferencesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get key => $composableBuilder(
+    column: $table.key,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get value => $composableBuilder(
+    column: $table.value,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$AppPreferencesTableOrderingComposer
+    extends Composer<_$InventoryDatabase, $AppPreferencesTable> {
+  $$AppPreferencesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get key => $composableBuilder(
+    column: $table.key,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get value => $composableBuilder(
+    column: $table.value,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$AppPreferencesTableAnnotationComposer
+    extends Composer<_$InventoryDatabase, $AppPreferencesTable> {
+  $$AppPreferencesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get key =>
+      $composableBuilder(column: $table.key, builder: (column) => column);
+
+  GeneratedColumn<String> get value =>
+      $composableBuilder(column: $table.value, builder: (column) => column);
+}
+
+class $$AppPreferencesTableTableManager
+    extends
+        RootTableManager<
+          _$InventoryDatabase,
+          $AppPreferencesTable,
+          AppPreference,
+          $$AppPreferencesTableFilterComposer,
+          $$AppPreferencesTableOrderingComposer,
+          $$AppPreferencesTableAnnotationComposer,
+          $$AppPreferencesTableCreateCompanionBuilder,
+          $$AppPreferencesTableUpdateCompanionBuilder,
+          (
+            AppPreference,
+            BaseReferences<
+              _$InventoryDatabase,
+              $AppPreferencesTable,
+              AppPreference
+            >,
+          ),
+          AppPreference,
+          PrefetchHooks Function()
+        > {
+  $$AppPreferencesTableTableManager(
+    _$InventoryDatabase db,
+    $AppPreferencesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$AppPreferencesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$AppPreferencesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$AppPreferencesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> key = const Value.absent(),
+                Value<String> value = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) =>
+                  AppPreferencesCompanion(key: key, value: value, rowid: rowid),
+          createCompanionCallback:
+              ({
+                required String key,
+                required String value,
+                Value<int> rowid = const Value.absent(),
+              }) => AppPreferencesCompanion.insert(
+                key: key,
+                value: value,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$AppPreferencesTable, AppPreference>(table),
+                  BaseReferences<
+                    _$InventoryDatabase,
+                    $AppPreferencesTable,
+                    AppPreference
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$AppPreferencesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$InventoryDatabase,
+      $AppPreferencesTable,
+      AppPreference,
+      $$AppPreferencesTableFilterComposer,
+      $$AppPreferencesTableOrderingComposer,
+      $$AppPreferencesTableAnnotationComposer,
+      $$AppPreferencesTableCreateCompanionBuilder,
+      $$AppPreferencesTableUpdateCompanionBuilder,
+      (
+        AppPreference,
+        BaseReferences<
+          _$InventoryDatabase,
+          $AppPreferencesTable,
+          AppPreference
+        >,
+      ),
+      AppPreference,
+      PrefetchHooks Function()
+    >;
+typedef $$NodeDocumentsTableCreateCompanionBuilder =
+    NodeDocumentsCompanion Function({
+      required String id,
+      required String inventoryId,
+      required String nodeId,
+      required String displayName,
+      required String relPath,
+      required String mimeType,
+      required int byteSize,
+      Value<int> sortIndex,
+      required String createdAt,
+      Value<int> rowid,
+    });
+typedef $$NodeDocumentsTableUpdateCompanionBuilder =
+    NodeDocumentsCompanion Function({
+      Value<String> id,
+      Value<String> inventoryId,
+      Value<String> nodeId,
+      Value<String> displayName,
+      Value<String> relPath,
+      Value<String> mimeType,
+      Value<int> byteSize,
+      Value<int> sortIndex,
+      Value<String> createdAt,
+      Value<int> rowid,
+    });
+
+final class $$NodeDocumentsTableReferences
+    extends
+        BaseReferences<
+          _$InventoryDatabase,
+          $NodeDocumentsTable,
+          NodeDocumentRow
+        > {
+  $$NodeDocumentsTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $InventoriesTable _inventoryIdTable(_$InventoryDatabase db) => db
+      .inventories
+      .createAlias('node_documents__inventory_id__inventories__id');
+
+  $$InventoriesTableProcessedTableManager get inventoryId {
+    final $_column = $_itemColumn<String>('inventory_id')!;
+
+    final manager = $$InventoriesTableTableManager(
+      $_db,
+      $_db.inventories,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_inventoryIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$NodeDocumentsTableFilterComposer
+    extends Composer<_$InventoryDatabase, $NodeDocumentsTable> {
+  $$NodeDocumentsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get nodeId => $composableBuilder(
+    column: $table.nodeId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get displayName => $composableBuilder(
+    column: $table.displayName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get relPath => $composableBuilder(
+    column: $table.relPath,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get mimeType => $composableBuilder(
+    column: $table.mimeType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get byteSize => $composableBuilder(
+    column: $table.byteSize,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get sortIndex => $composableBuilder(
+    column: $table.sortIndex,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$InventoriesTableFilterComposer get inventoryId {
+    final $$InventoriesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.inventoryId,
+      referencedTable: $db.inventories,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$InventoriesTableFilterComposer(
+            $db: $db,
+            $table: $db.inventories,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$NodeDocumentsTableOrderingComposer
+    extends Composer<_$InventoryDatabase, $NodeDocumentsTable> {
+  $$NodeDocumentsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get nodeId => $composableBuilder(
+    column: $table.nodeId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get displayName => $composableBuilder(
+    column: $table.displayName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get relPath => $composableBuilder(
+    column: $table.relPath,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get mimeType => $composableBuilder(
+    column: $table.mimeType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get byteSize => $composableBuilder(
+    column: $table.byteSize,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get sortIndex => $composableBuilder(
+    column: $table.sortIndex,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$InventoriesTableOrderingComposer get inventoryId {
+    final $$InventoriesTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.inventoryId,
+      referencedTable: $db.inventories,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$InventoriesTableOrderingComposer(
+            $db: $db,
+            $table: $db.inventories,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$NodeDocumentsTableAnnotationComposer
+    extends Composer<_$InventoryDatabase, $NodeDocumentsTable> {
+  $$NodeDocumentsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get nodeId =>
+      $composableBuilder(column: $table.nodeId, builder: (column) => column);
+
+  GeneratedColumn<String> get displayName => $composableBuilder(
+    column: $table.displayName,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get relPath =>
+      $composableBuilder(column: $table.relPath, builder: (column) => column);
+
+  GeneratedColumn<String> get mimeType =>
+      $composableBuilder(column: $table.mimeType, builder: (column) => column);
+
+  GeneratedColumn<int> get byteSize =>
+      $composableBuilder(column: $table.byteSize, builder: (column) => column);
+
+  GeneratedColumn<int> get sortIndex =>
+      $composableBuilder(column: $table.sortIndex, builder: (column) => column);
+
+  GeneratedColumn<String> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  $$InventoriesTableAnnotationComposer get inventoryId {
+    final $$InventoriesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.inventoryId,
+      referencedTable: $db.inventories,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$InventoriesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.inventories,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$NodeDocumentsTableTableManager
+    extends
+        RootTableManager<
+          _$InventoryDatabase,
+          $NodeDocumentsTable,
+          NodeDocumentRow,
+          $$NodeDocumentsTableFilterComposer,
+          $$NodeDocumentsTableOrderingComposer,
+          $$NodeDocumentsTableAnnotationComposer,
+          $$NodeDocumentsTableCreateCompanionBuilder,
+          $$NodeDocumentsTableUpdateCompanionBuilder,
+          (NodeDocumentRow, $$NodeDocumentsTableReferences),
+          NodeDocumentRow,
+          PrefetchHooks Function({bool inventoryId})
+        > {
+  $$NodeDocumentsTableTableManager(
+    _$InventoryDatabase db,
+    $NodeDocumentsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$NodeDocumentsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$NodeDocumentsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$NodeDocumentsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> inventoryId = const Value.absent(),
+                Value<String> nodeId = const Value.absent(),
+                Value<String> displayName = const Value.absent(),
+                Value<String> relPath = const Value.absent(),
+                Value<String> mimeType = const Value.absent(),
+                Value<int> byteSize = const Value.absent(),
+                Value<int> sortIndex = const Value.absent(),
+                Value<String> createdAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => NodeDocumentsCompanion(
+                id: id,
+                inventoryId: inventoryId,
+                nodeId: nodeId,
+                displayName: displayName,
+                relPath: relPath,
+                mimeType: mimeType,
+                byteSize: byteSize,
+                sortIndex: sortIndex,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String inventoryId,
+                required String nodeId,
+                required String displayName,
+                required String relPath,
+                required String mimeType,
+                required int byteSize,
+                Value<int> sortIndex = const Value.absent(),
+                required String createdAt,
+                Value<int> rowid = const Value.absent(),
+              }) => NodeDocumentsCompanion.insert(
+                id: id,
+                inventoryId: inventoryId,
+                nodeId: nodeId,
+                displayName: displayName,
+                relPath: relPath,
+                mimeType: mimeType,
+                byteSize: byteSize,
+                sortIndex: sortIndex,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$NodeDocumentsTable, NodeDocumentRow>(table),
+                  $$NodeDocumentsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({inventoryId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (inventoryId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.inventoryId,
+                                referencedTable: $$NodeDocumentsTableReferences
+                                    ._inventoryIdTable(db),
+                                referencedColumn: $$NodeDocumentsTableReferences
+                                    ._inventoryIdTable(db)
+                                    .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$NodeDocumentsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$InventoryDatabase,
+      $NodeDocumentsTable,
+      NodeDocumentRow,
+      $$NodeDocumentsTableFilterComposer,
+      $$NodeDocumentsTableOrderingComposer,
+      $$NodeDocumentsTableAnnotationComposer,
+      $$NodeDocumentsTableCreateCompanionBuilder,
+      $$NodeDocumentsTableUpdateCompanionBuilder,
+      (NodeDocumentRow, $$NodeDocumentsTableReferences),
+      NodeDocumentRow,
+      PrefetchHooks Function({bool inventoryId})
+    >;
 
 class $InventoryDatabaseManager {
   final _$InventoryDatabase _db;
@@ -5557,4 +9112,10 @@ class $InventoryDatabaseManager {
       );
   $$StockMovementsTableTableManager get stockMovements =>
       $$StockMovementsTableTableManager(_db, _db.stockMovements);
+  $$PurchaseEventsTableTableManager get purchaseEvents =>
+      $$PurchaseEventsTableTableManager(_db, _db.purchaseEvents);
+  $$AppPreferencesTableTableManager get appPreferences =>
+      $$AppPreferencesTableTableManager(_db, _db.appPreferences);
+  $$NodeDocumentsTableTableManager get nodeDocuments =>
+      $$NodeDocumentsTableTableManager(_db, _db.nodeDocuments);
 }

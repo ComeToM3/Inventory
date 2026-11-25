@@ -136,7 +136,7 @@ class _InventoryHistoryScreenState extends State<InventoryHistoryScreen> {
               final item = items[error == null ? index : index - 1];
               return ListTile(
                 leading: Icon(
-                  inventoryNodeIcon(item.type),
+                  inventoryIconForNode(item),
                   color: InventoryColors.petroleum,
                 ),
                 title: Text(

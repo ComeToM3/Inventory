@@ -7,6 +7,9 @@ import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 import java.io.ByteArrayOutputStream
+import java.io.File
+import java.io.FileInputStream
+import java.io.FileOutputStream
 import java.io.IOException
 
 class MainActivity : FlutterActivity() {
@@ -83,6 +86,87 @@ class MainActivity : FlutterActivity() {
                         }
                     }
 
+                    "writeDocumentFromPath" -> {
+                        val uriValue = call.argument<String>("uri")
+                        val path = call.argument<String>("path")
+                        if (uriValue.isNullOrBlank() || path.isNullOrBlank()) {
+                            result.error("INVALID", "uri and path are required.", null)
+                            return@setMethodCallHandler
+                        }
+                        try {
+                            val source = File(path)
+                            if (!source.isFile) {
+                                result.error("WRITE_FAILED", "Source file missing.", null)
+                                return@setMethodCallHandler
+                            }
+                            val uri = Uri.parse(uriValue)
+                            contentResolver.openOutputStream(uri, "wt").use { output ->
+                                if (output == null) {
+                                    result.error("WRITE_FAILED", "Unable to open output stream.", null)
+                                    return@setMethodCallHandler
+                                }
+                                FileInputStream(source).use { input ->
+                                    val chunk = ByteArray(64 * 1024)
+                                    while (true) {
+                                        val read = input.read(chunk)
+                                        if (read < 0) break
+                                        output.write(chunk, 0, read)
+                                    }
+                                }
+                                output.flush()
+                            }
+                            result.success(null)
+                        } catch (error: Exception) {
+                            result.error("WRITE_FAILED", error.message, null)
+                        }
+                    }
+
+                    "copyDocumentToPath" -> {
+                        val uriValue = call.argument<String>("uri")
+                        val path = call.argument<String>("path")
+                        val maxBytes =
+                            call.argument<Int>("maxBytes") ?: (512 * 1024 * 1024)
+                        if (uriValue.isNullOrBlank() || path.isNullOrBlank()) {
+                            result.error("INVALID", "uri and path are required.", null)
+                            return@setMethodCallHandler
+                        }
+                        try {
+                            val uri = Uri.parse(uriValue)
+                            val target = File(path)
+                            target.parentFile?.mkdirs()
+                            contentResolver.openInputStream(uri).use { input ->
+                                if (input == null) {
+                                    result.error("UNREADABLE", "Unable to open input stream.", null)
+                                    return@setMethodCallHandler
+                                }
+                                FileOutputStream(target).use { output ->
+                                    val chunk = ByteArray(64 * 1024)
+                                    var total = 0L
+                                    while (true) {
+                                        val read = input.read(chunk)
+                                        if (read < 0) break
+                                        total += read
+                                        if (total > maxBytes) {
+                                            result.error(
+                                                "TOO_LARGE",
+                                                "Document exceeds size limit.",
+                                                null,
+                                            )
+                                            return@setMethodCallHandler
+                                        }
+                                        output.write(chunk, 0, read)
+                                    }
+                                    output.flush()
+                                }
+                            }
+                            result.success(target.absolutePath)
+                        } catch (error: IOException) {
+                            result.error("UNREADABLE", error.message, null)
+                        } catch (error: Exception) {
+                            result.error("UNREADABLE", error.message, null)
+                        }
+                    }
+
                     "readDocument" -> {
                         val uriValue = call.argument<String>("uri")
                         if (uriValue.isNullOrBlank()) {
@@ -107,7 +191,7 @@ class MainActivity : FlutterActivity() {
 
                     "readDocumentLimited" -> {
                         val uriValue = call.argument<String>("uri")
-                        val maxBytes = call.argument<Int>("maxBytes") ?: (32 * 1024 * 1024)
+                        val maxBytes = call.argument<Int>("maxBytes") ?: (512 * 1024 * 1024)
                         if (uriValue.isNullOrBlank()) {
                             result.error("INVALID", "uri is required.", null)
                             return@setMethodCallHandler

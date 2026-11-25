@@ -1,0 +1,233 @@
+import 'package:flutter/material.dart';
+
+import '../domain/inventory_models.dart';
+
+/// Stable string keys → Material [IconData] (local, no downloads).
+abstract final class InventoryIconCatalog {
+  static IconData genericFor(NodeType type) => switch (type) {
+    NodeType.location => Icons.apartment_outlined,
+    NodeType.item => Icons.view_in_ar_outlined,
+    NodeType.itemContainer => Icons.luggage_outlined,
+  };
+
+  static IconData? byKey(String? key) {
+    if (key == null || key.isEmpty) return null;
+    return _icons[key];
+  }
+
+  static bool isKnown(String key) => _icons.containsKey(key);
+
+  /// Keys shown in the compact manual picker (ordered, de-duplicated).
+  static List<String> get selectableKeys => _selectable;
+
+  static final List<String> _selectable = () {
+    final seen = <String>{};
+    final out = <String>[];
+    for (final key in _icons.keys) {
+      if (seen.add(key)) out.add(key);
+    }
+    return out;
+  }();
+
+  static const Map<String, IconData> _icons = {
+    // Habitation / lieux
+    'home': Icons.home_outlined,
+    'apartment': Icons.apartment_outlined,
+    'cottage': Icons.cottage_outlined,
+    'cabin': Icons.cabin_outlined,
+    'holiday_village': Icons.holiday_village_outlined,
+    'domain': Icons.domain_outlined,
+    'business': Icons.business_outlined,
+    'storefront': Icons.storefront_outlined,
+    'warehouse': Icons.warehouse_outlined,
+    'garage': Icons.garage_outlined,
+    'bedroom': Icons.bedroom_parent_outlined,
+    'bed': Icons.bed_outlined,
+    'kitchen': Icons.kitchen_outlined,
+    'bathroom': Icons.bathroom_outlined,
+    'bathtub': Icons.bathtub_outlined,
+    'living': Icons.living_outlined,
+    'meeting_room': Icons.meeting_room_outlined,
+    'door': Icons.door_front_door_outlined,
+    'yard': Icons.yard_outlined,
+    'fence': Icons.fence_outlined,
+    'deck': Icons.deck_outlined,
+    'stairs': Icons.stairs_outlined,
+    'elevator': Icons.elevator_outlined,
+    'balcony': Icons.deck_outlined,
+    'roofing': Icons.roofing_outlined,
+    // Rangement / contenants
+    'inventory_2': Icons.inventory_2_outlined,
+    'shelves': Icons.view_agenda_outlined,
+    'drawer': Icons.inbox_outlined,
+    'archive': Icons.archive_outlined,
+    'box': Icons.widgets_outlined,
+    'luggage': Icons.luggage_outlined,
+    'backpack': Icons.backpack_outlined,
+    'shopping_bag': Icons.shopping_bag_outlined,
+    'work': Icons.work_outline,
+    'folder': Icons.folder_outlined,
+    'safe': Icons.lock_outlined,
+    // Mobilier / déco
+    'chair': Icons.chair_outlined,
+    'chair_alt': Icons.chair_alt_outlined,
+    'table_bar': Icons.table_bar_outlined,
+    'table_restaurant': Icons.table_restaurant_outlined,
+    'desk': Icons.desk_outlined,
+    'weekend': Icons.weekend_outlined,
+    'light': Icons.light_outlined,
+    'lamp': Icons.lightbulb_outline,
+    'blinds': Icons.blinds_outlined,
+    'curtain': Icons.curtains_outlined,
+    'palette': Icons.palette_outlined,
+    'image': Icons.image_outlined,
+    'checkroom': Icons.checkroom_outlined,
+    // Informatique / électronique
+    'computer': Icons.computer_outlined,
+    'laptop': Icons.laptop_outlined,
+    'desktop': Icons.desktop_windows_outlined,
+    'monitor': Icons.monitor_outlined,
+    'tv': Icons.tv_outlined,
+    'keyboard': Icons.keyboard_outlined,
+    'mouse': Icons.mouse_outlined,
+    'headphones': Icons.headphones_outlined,
+    'headset': Icons.headset_outlined,
+    'speaker': Icons.speaker_outlined,
+    'phone': Icons.phone_android_outlined,
+    'smartphone': Icons.smartphone_outlined,
+    'tablet': Icons.tablet_mac_outlined,
+    'watch': Icons.watch_outlined,
+    'print': Icons.print_outlined,
+    'scanner': Icons.scanner_outlined,
+    'router': Icons.router_outlined,
+    'wifi': Icons.wifi,
+    'cable': Icons.cable,
+    'usb': Icons.usb_outlined,
+    'memory': Icons.memory_outlined,
+    'sd_card': Icons.sd_card_outlined,
+    'hard_drive': Icons.storage_outlined,
+    'cloud': Icons.cloud_outlined,
+    'gamepad': Icons.sports_esports_outlined,
+    'camera': Icons.photo_camera_outlined,
+    'videocam': Icons.videocam_outlined,
+    'photo': Icons.photo_outlined,
+    'battery': Icons.battery_charging_full,
+    'power': Icons.power_outlined,
+    'bolt': Icons.bolt_outlined,
+    // Électroménager / cuisine
+    'microwave': Icons.microwave_outlined,
+    'oven': Icons.kitchen_outlined,
+    'dishwasher': Icons.countertops_outlined,
+    'coffee': Icons.coffee_outlined,
+    'blender': Icons.blender_outlined,
+    'flatware': Icons.flatware,
+    'restaurant': Icons.restaurant_outlined,
+    'dining': Icons.dining_outlined,
+    'local_pizza': Icons.local_pizza_outlined,
+    'bakery': Icons.bakery_dining_outlined,
+    'liquor': Icons.liquor_outlined,
+    'wine': Icons.wine_bar_outlined,
+    'water': Icons.water_drop_outlined,
+    'ac_unit': Icons.ac_unit,
+    'thermostat': Icons.thermostat_outlined,
+    'vacuum': Icons.cleaning_services_outlined,
+    'iron': Icons.iron_outlined,
+    'wash': Icons.local_laundry_service_outlined,
+    // Vêtements / hygiène
+    'apparel': Icons.checkroom_outlined,
+    'dry_cleaning': Icons.dry_cleaning_outlined,
+    'shoes': Icons.do_not_step_outlined,
+    'diamond': Icons.diamond_outlined,
+    'soap': Icons.soap_outlined,
+    'health': Icons.health_and_safety_outlined,
+    'medication': Icons.medication_outlined,
+    'medical': Icons.medical_services_outlined,
+    'spa': Icons.spa_outlined,
+    'face': Icons.face_outlined,
+    'content_cut': Icons.content_cut,
+    // Entretien / outils
+    'cleaning': Icons.cleaning_services_outlined,
+    'broom': Icons.cleaning_services_outlined,
+    'handyman': Icons.handyman_outlined,
+    'build': Icons.build_outlined,
+    'hardware': Icons.hardware_outlined,
+    'construction': Icons.construction_outlined,
+    'plumbing': Icons.plumbing_outlined,
+    'electrical': Icons.electrical_services_outlined,
+    'carpentry': Icons.carpenter_outlined,
+    'paint': Icons.format_paint_outlined,
+    'straighten': Icons.straighten,
+    'balance': Icons.balance_outlined,
+    // Transport
+    'directions_car': Icons.directions_car_outlined,
+    'two_wheeler': Icons.two_wheeler_outlined,
+    'pedal_bike': Icons.pedal_bike_outlined,
+    'electric_scooter': Icons.electric_scooter_outlined,
+    'local_shipping': Icons.local_shipping_outlined,
+    'airport_shuttle': Icons.airport_shuttle_outlined,
+    'directions_boat': Icons.directions_boat_outlined,
+    'flight': Icons.flight_outlined,
+    'tire': Icons.album_outlined,
+    'local_gas': Icons.local_gas_station_outlined,
+    'ev_station': Icons.ev_station_outlined,
+    'key': Icons.key_outlined,
+    // Jardin / outdoor
+    'grass': Icons.grass_outlined,
+    'forest': Icons.forest_outlined,
+    'potted_plant': Icons.local_florist_outlined,
+    'agriculture': Icons.agriculture_outlined,
+    'compost': Icons.compost_outlined,
+    'water_hose': Icons.water_outlined,
+    'sunny': Icons.wb_sunny_outlined,
+    'camping': Icons.cabin_outlined,
+    'hiking': Icons.directions_walk_outlined,
+    // Sports / loisirs
+    'fitness': Icons.fitness_center_outlined,
+    'sports_soccer': Icons.sports_soccer_outlined,
+    'sports_tennis': Icons.sports_tennis,
+    'sports_basketball': Icons.sports_basketball,
+    'sports_hockey': Icons.sports_hockey,
+    'pool': Icons.pool_outlined,
+    'skateboarding': Icons.skateboarding,
+    'self_improvement': Icons.self_improvement_outlined,
+    // Musique / média
+    'music_note': Icons.music_note_outlined,
+    'piano': Icons.piano_outlined,
+    'radio': Icons.radio_outlined,
+    'album': Icons.album_outlined,
+    'movie': Icons.movie_outlined,
+    // Livres / docs / papeterie
+    'menu_book': Icons.menu_book_outlined,
+    'auto_stories': Icons.auto_stories_outlined,
+    'description': Icons.description_outlined,
+    'article': Icons.article_outlined,
+    'sticky_note': Icons.sticky_note_2_outlined,
+    'edit': Icons.edit_outlined,
+    'draw': Icons.draw_outlined,
+    'calculator': Icons.calculate_outlined,
+    'mail': Icons.mail_outline,
+    // Jeux / enfants / animaux
+    'toys': Icons.toys_outlined,
+    'extension': Icons.extension_outlined,
+    'casino': Icons.casino_outlined,
+    'child_care': Icons.child_care_outlined,
+    'pets': Icons.pets_outlined,
+    'cruelty_free': Icons.cruelty_free_outlined,
+    // Pro / conso
+    'badge': Icons.badge_outlined,
+    'science': Icons.science_outlined,
+    'biotech': Icons.biotech_outlined,
+    'factory': Icons.factory_outlined,
+    'precision': Icons.precision_manufacturing_outlined,
+    'shopping_cart': Icons.shopping_cart_outlined,
+    'local_mall': Icons.local_mall_outlined,
+    'redeem': Icons.redeem_outlined,
+    'savings': Icons.savings_outlined,
+    'receipt': Icons.receipt_long_outlined,
+    'qr_code': Icons.qr_code_2_outlined,
+    'sell': Icons.sell_outlined,
+    'category': Icons.category_outlined,
+    'widgets': Icons.widgets_outlined,
+    'cube': Icons.view_in_ar_outlined,
+  };
+}

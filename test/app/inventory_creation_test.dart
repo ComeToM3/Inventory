@@ -354,6 +354,7 @@ class _ControlledEngine extends InventoryEngine {
     int? quantity,
     NodeValuation? valuation,
     int? stockReference,
+    int? targetPriceCents,
   }) async {
     creationCalls++;
     if (failCreation) {
@@ -370,6 +371,7 @@ class _ControlledEngine extends InventoryEngine {
       quantity: quantity,
       valuation: valuation,
       stockReference: stockReference,
+      targetPriceCents: targetPriceCents,
     );
     creationCommitted?.complete();
     return result;

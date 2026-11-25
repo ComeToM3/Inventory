@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 
-/// Thumb-friendly body: fields sit low when space allows; footer stays docked.
+/// Form / picker body: short content sits in the thumb-friendly mid band;
+/// long content scrolls. Footer stays docked.
 ///
-/// Important: the field subtree keeps a stable structure when the IME opens
-/// (always [Align], sticky footer outside the scroll view) so text focus is
-/// not dismissed by a layout swap.
+/// UX-02: vertical offset is derived from the **pre-IME** viewport height
+/// (`maxHeight + viewInsets.bottom`), so opening the keyboard does not flip
+/// or re-centre the field block (keeps UX-01-C stability).
 class InventoryThumbBody extends StatelessWidget {
   const InventoryThumbBody({
     super.key,
@@ -17,10 +18,13 @@ class InventoryThumbBody extends StatelessWidget {
   final Widget? footer;
   final EdgeInsets padding;
 
+  /// Fraction of the stable (keyboard-closed) body height left empty above
+  /// short content — places selectors near the middle, reachable by thumb.
+  static const _topBandFraction = 0.30;
+
   @override
   Widget build(BuildContext context) {
-    // Scaffold already resizes for the IME — do not add viewInsets again.
-    // Keep a fixed Align.bottomCenter so focus is not lost when the IME opens.
+    final imeBottom = MediaQuery.viewInsetsOf(context).bottom;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -32,19 +36,16 @@ class InventoryThumbBody extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: children,
               );
+              // Reconstruct the closed-keyboard body height so top spacing
+              // stays constant when the IME resizes the scaffold.
+              final stableHeight = constraints.maxHeight + imeBottom;
+              final topGap = (stableHeight * _topBandFraction)
+                  .clamp(0.0, constraints.maxHeight * 0.45);
               return SingleChildScrollView(
-                padding: padding,
+                padding: padding.copyWith(top: padding.top + topGap),
                 keyboardDismissBehavior:
-                    ScrollViewKeyboardDismissBehavior.manual,
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(
-                    minHeight: constraints.maxHeight - padding.vertical,
-                  ),
-                  child: Align(
-                    alignment: Alignment.bottomCenter,
-                    child: fields,
-                  ),
-                ),
+                    ScrollViewKeyboardDismissBehavior.onDrag,
+                child: fields,
               );
             },
           ),

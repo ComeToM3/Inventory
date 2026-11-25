@@ -297,7 +297,7 @@ void main() {
       expect(
         (await database.customSelect('PRAGMA user_version').getSingle())
             .read<int>('user_version'),
-        7,
+        9,
       );
       expect(await database.select(database.inventories).get(), hasLength(1));
       final columns = await database.customSelect('PRAGMA table_info(nodes)').get();
@@ -305,6 +305,15 @@ void main() {
         columns.any((row) => row.read<String>('name') == 'stock_reference'),
         isTrue,
       );
+      expect(
+        columns.any((row) => row.read<String>('name') == 'desired_quantity'),
+        isTrue,
+      );
+      expect(
+        columns.any((row) => row.read<String>('name') == 'sibling_order'),
+        isTrue,
+      );
+      expect(await database.select(database.purchaseEvents).get(), isEmpty);
       await database.close();
       database = null;
 
@@ -388,13 +397,21 @@ CREATE TABLE nodes (
       expect(
         (await database.customSelect('PRAGMA user_version').getSingle())
             .read<int>('user_version'),
-        7,
+        9,
       );
       final columns =
           await database.customSelect('PRAGMA table_info(nodes)').get();
       expect(
         columns.where((row) => row.read<String>('name') == 'stock_reference'),
         hasLength(1),
+      );
+      expect(
+        columns.any((row) => row.read<String>('name') == 'desired_quantity'),
+        isTrue,
+      );
+      expect(
+        columns.any((row) => row.read<String>('name') == 'sibling_order'),
+        isTrue,
       );
       final cafe = await (database.select(database.nodes)
             ..where((n) => n.id.equals('item-1')))
@@ -410,7 +427,7 @@ CREATE TABLE nodes (
       expect(
         (await database.customSelect('PRAGMA user_version').getSingle())
             .read<int>('user_version'),
-        7,
+        9,
       );
       final again = await (database.select(database.nodes)
             ..where((n) => n.id.equals('item-1')))
