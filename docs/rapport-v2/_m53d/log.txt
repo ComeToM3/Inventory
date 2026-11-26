@@ -1,0 +1,22 @@
+biens_home=True
+expand_ctrl=True state=Afficher le contenu
+expand_toggle Afficher le contenu -> Masquer le contenu
+details_markers=True
+stock_nodes=['Recherche', 'Plus d’actions', 'Emplacement\nInventaire (1)', 'Masquer le contenu', 'Ajouter dans Inventaire', 'Emplacement\nCellierM53C (2)', 'Masquer le contenu', 'Ajouter dans CellierM53C', 'Bien simple\nFggv', '1', 'Bien simple\nRizM53C', '½']
+stock_menu_add=True
+stock_prod_card=True
+stock_M53DRiz=True
+stock_level_ctrl={'text': '', 'desc': '1', 'cls': 'android.view.View', 'click': True, 'cx': 587, 'cy': 929, 'bounds': (552, 894, 622, 964)}
+stock_level_0=½
+stock_level_1=¼
+stock_level_2=0
+stock_hist=False
+buy_article_card=True
+buy_M53DCafe=True
+buy_achete=False
+buy2_created=True
+persist_M53DBien=True
+persist_M53DRiz=False
+persist_M53DCafe=False
+settings_entry=True
+settings_backup_ui=['Sauvegarder l’inventaire', 'La sauvegarde contient l’inventaire complet : empl', 'Sauvegarder l’inventaire', 'Restaurer une sauvegarde']

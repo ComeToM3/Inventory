@@ -296,12 +296,6 @@ class InventoryTreeController extends ChangeNotifier {
     return OrganizeDropKind.none;
   }
 
-  bool isSameParentDrop({
-    required InventoryNode dragged,
-    required InventoryNode target,
-  }) =>
-      dragged.parentId == target.id;
-
   Future<void> reorderSiblings({
     String? parentId,
     required List<String> orderedIds,
@@ -355,32 +349,6 @@ class InventoryTreeController extends ChangeNotifier {
       throw const InventoryException(InventoryErrorCode.nodeNotFound);
     }
     ids.insert(after ? index + 1 : index, nodeId);
-    await _engine.reorderSiblings(
-      space: space,
-      parentId: node.parentId,
-      orderedIds: ids,
-    );
-    if (_disposed) return;
-    await _refreshParent(node.parentId);
-  });
-
-  Future<void> moveSibling({
-    required String nodeId,
-    required int delta,
-  }) => _trackOperation(() async {
-    final node = await _engine.getNode(nodeId);
-    final siblings = node.parentId == null
-        ? await _engine.getRootLocations(space: space)
-        : await _engine.getChildren(node.parentId!);
-    final ids = [for (final s in siblings) s.id];
-    final index = ids.indexOf(nodeId);
-    if (index < 0) {
-      throw const InventoryException(InventoryErrorCode.nodeNotFound);
-    }
-    final next = index + delta;
-    if (next < 0 || next >= ids.length) return;
-    ids.removeAt(index);
-    ids.insert(next, nodeId);
     await _engine.reorderSiblings(
       space: space,
       parentId: node.parentId,
@@ -700,75 +668,6 @@ class InventoryTreeController extends ChangeNotifier {
       ?_rootRequest,
     ]);
     return moved;
-  });
-
-  /// Moves [nodeId] under [newParentId] (nullable = root) then places it at
-  /// [index] among the destination siblings. Same parent is allowed (reorder).
-  Future<InventoryNode> relocateNode({
-    required String nodeId,
-    required String? newParentId,
-    required int index,
-  }) => _trackOperation(() async {
-    final previous = await _engine.getNode(nodeId);
-    final parentChanged = previous.parentId != newParentId;
-    if (parentChanged) {
-      await _engine.moveNode(nodeId, newParentId);
-    }
-    final siblings = newParentId == null
-        ? await _engine.getRootLocations(space: space)
-        : await _engine.getChildren(newParentId);
-    final ids = [for (final s in siblings) s.id];
-    ids.remove(nodeId);
-    final clamped = index.clamp(0, ids.length);
-    ids.insert(clamped, nodeId);
-    await _engine.reorderSiblings(
-      space: space,
-      parentId: newParentId,
-      orderedIds: ids,
-    );
-    final moved = await _engine.getNode(nodeId);
-    if (_disposed) return moved;
-    _invalidateSubtreeTotals();
-    final parents = {previous.parentId, moved.parentId};
-    for (final parentId in parents) {
-      _detachFromParentCache(parentId, nodeId);
-    }
-    if (newParentId != null) {
-      final destinationPath = await _engine.getPath(newParentId);
-      for (final ancestor in destinationPath) {
-        _expanded.add(ancestor.id);
-        if (!parents.contains(ancestor.id) &&
-            !_children.containsKey(ancestor.id) &&
-            !_childRequests.containsKey(ancestor.id)) {
-          _startChildren(ancestor.id);
-        }
-      }
-      await Future.wait([
-        for (final parentId in parents) _refreshParent(parentId),
-        for (final ancestor in destinationPath) ?_childRequests[ancestor.id],
-        ?_rootRequest,
-      ]);
-    } else {
-      if (_roots == null && _rootRequest == null) loadRoots();
-      await Future.wait([
-        for (final parentId in parents) _refreshParent(parentId),
-        ?_rootRequest,
-      ]);
-    }
-    if (!_disposed) notifyListeners();
-    return moved;
-  });
-
-  /// Active siblings under [parentId] (null = roots), excluding [excludingId].
-  Future<List<InventoryNode>> listSiblings({
-    String? parentId,
-    String? excludingId,
-  }) => _trackOperation(() async {
-    final siblings = parentId == null
-        ? await _engine.getRootLocations(space: space)
-        : await _engine.getChildren(parentId);
-    if (excludingId == null) return siblings;
-    return [for (final s in siblings) if (s.id != excludingId) s];
   });
 
   /// Withdraws an active item and removes it from the active tree cache.

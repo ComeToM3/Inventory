@@ -1,10 +1,13 @@
 # Inventory V2 — Plan directeur de développement
 
-**Version :** 2.1-C — Mise à jour du 17 novembre 2026  
-**Statut :** Référence fonctionnelle consolidée — Phase 1 terminée (M1.x) ; Phase 2 M2.1-C Stock (niveaux)  
-**Plateforme :** Android uniquement  
-**Technologies :** Flutter, Dart, Drift/SQLite  
+**Version document :** 2.0.0-LIVRÉE — 25 novembre 2026  
+**Statut :** Inventory V2 **livré** — version applicative officielle `2.0.0` (versionCode arm64 `6051`)  
+**Plateforme :** Android uniquement (minSdk 24, targetSdk 36, ABI arm64-v8a)  
+**Technologies :** Flutter, Dart, Drift/SQLite (schéma **15**)  
 **Fonctionnement :** Local, hors ligne, sans compte ni synchronisation  
+**Sauvegarde :** `.invbackup` format **2**, données **3**  
+**Artefact :** `dist/android/Inventory-v2.0.0-arm64-release-vc6051.apk`  
+**Rapport de livraison :** `docs/rapport-v2/m5-4-livraison-officielle-cloture-v2.md`  
 **Référence comportementale :** Inventory V1 existante  
 **Audit technique :** `docs/rapport-v2/spécification-technique-préliminaire-v2.md`
 
@@ -103,7 +106,7 @@ Les décisions V2-00 restent applicables.
 | D06 | Prix payé distinct de la valorisation d'un bien | DÉCIDÉ |
 | D07 | Documents PDF/JPEG/PNG/WebP, maximum 15 Mo par document | DÉCIDÉ |
 | D08 | Caméra, galerie et stockage privé WebP optimisé | DÉCIDÉ |
-| D09 | Mode Organiser distinct du déplacement hiérarchique | DÉCIDÉ |
+| D09 | Organisation manuelle de l’arborescence — **évolution livrée :** manipulation directe par appui long et glisser-déposer (réordonnancement frères et changement de parent) ; le mode menu « Organiser » distinct a été retiré | DÉCIDÉ (livré DnD) |
 | D10 | Sauvegarde `.invbackup` V2 versionnée, médias inclus, import V1 prévu | DÉCIDÉ, avec politique de migration SQLite assouplie |
 
 Les décisions de fonctionnement, d'interface et de sécurité déjà validées restent en vigueur.
@@ -477,32 +480,25 @@ Leur lisibilité et leur intégrité doivent être préservées.
 
 ---
 
-## 8. Organisation et déplacements — D09
+## 8. Organisation et déplacements — D09 (état livré)
 
-Ajouter un ordre manuel persistant entre les éléments d'un même parent.
+Ordre manuel persistant entre frères d’un même parent.
 
-### Mode Organiser
+### Manipulation directe (comportement livré)
 
-- Action explicite.
-- Réorganisation des éléments frères.
-- Aucun changement de parent.
-- Ordre conservé après redémarrage et restauration.
-
-### Déplacement hiérarchique
-
-- Opération distincte du réordonnancement.
-- Prolonger le déplacement V1 existant.
-- Conserver les descendants.
-- Conserver les valeurs et historiques.
+- Appui long puis glisser-déposer dans l’arborescence de l’espace courant.
+- Réordonnancement entre frères **et** changement de parent admissibles dans le même geste.
+- Conserver les descendants, valeurs et historiques.
 - Interdire les cycles.
 - Respecter les parents admissibles.
 - Interdire les déplacements directs entre espaces.
+- Ordre conservé après redémarrage et restauration.
 
-Pour une base V2 vierge, l'ordre initial peut être établi à partir du comportement d'affichage existant.
+### Décision historique — mode menu « Organiser »
 
-La migration de l'ordre d'anciennes données V1 ne constitue plus une obligation bloquante.
+Un mode menu Organiser distinct du déplacement avait été envisagé (D09 initiale). Il a été **remplacé** par la manipulation directe (UX-CORR-02-R2) ; les API et écrans résiduels ont été retirés (INTER-03-C). La référence normative est le DnD appui long.
 
-Ne pas reconstruire l'arborescence si une extension suffit.
+Pour une base V2 vierge, l’ordre initial suit le comportement d’affichage existant. La migration de l’ordre d’anciennes données V1 n’est pas une obligation bloquante.
 
 ---
 
@@ -551,7 +547,7 @@ Les licences, la taille du binaire et les performances doivent être vérifiées
 
 Conserver trois logiques distinctes :
 
-**Biens :** valeur financière ou sentimentale.
+**Biens :** valorisation **exclusive** — financière **ou** sentimentale (pas les deux simultanément sur la même fiche).
 
 **Stock :** niveau (1 / ½ / ¼ / 0) et quantité de référence facultative.
 
@@ -625,21 +621,17 @@ Les données V2 doivent être conservées pendant les mises à jour et les resta
 
 ---
 
-## 12. Architecture technique cible
+## 12. Architecture technique finale (V2.0.0)
 
 - Flutter / Dart.
 - Material Design 3.
-- Android uniquement.
-- Drift / SQLite local.
-- Un moteur commun.
-- Trois espaces explicitement identifiés.
-- Hiérarchies indépendantes.
-- Contrôleurs ou états adaptés à chaque espace.
-- Règles métier spécialisées.
-- Transactions pour mouvements et acquisitions.
-- Migrations V2 versionnées.
-- Médias privés référencés en base.
-- Traitements de fichiers sécurisés par staging et nettoyage.
+- Android uniquement (`io.github.cometom3.inventory`, minSdk 24, targetSdk 36, arm64-v8a).
+- Drift / SQLite local — **schéma 15**.
+- Un moteur commun ; trois espaces `goods` / `stock` / `to_buy` ; hiérarchies indépendantes.
+- Fiche unifiée / formulaires harmonisés (convergence UX).
+- Règles métier spécialisées ; transactions pour mouvements et acquisitions.
+- Médias privés (photos WebP, documents) référencés en base.
+- Sauvegarde / restauration `.invbackup` (format 2, données 3).
 - Aucun cloud, serveur, compte ou synchronisation.
 
 ### Règles de développement
@@ -676,7 +668,7 @@ Références :
 
 ### Phase 1 — Trois espaces et contextualisation
 
-**Statut : EN COURS**
+**Statut : TERMINÉ**
 
 | Mandat | Objectif | Statut |
 |---|---|---|
@@ -701,7 +693,7 @@ La création de produits Stock et de besoins À acheter est prévue en Phase 2, 
 
 ### Phase 2 — Stock et À acheter
 
-**Statut : À DÉVELOPPER**
+**Statut : TERMINÉ**
 
 **M2.1 / M2.1-C — Stock**
 
@@ -735,7 +727,7 @@ Les mandats peuvent être subdivisés si le périmètre réel le justifie, sans 
 
 ### Phase 3 — Organisation manuelle
 
-**Statut : À DÉVELOPPER**
+**Statut : TERMINÉ** (DnD appui long ; voir §8)
 
 **M3.1 — Ordre manuel**
 
@@ -756,7 +748,7 @@ Les mandats peuvent être subdivisés si le périmètre réel le justifie, sans 
 
 ### Phase 4 — Fiches avancées et médias
 
-**Statut : À DÉVELOPPER**
+**Statut : TERMINÉ**
 
 **M4.1 — Fiches avancées**
 
@@ -781,7 +773,7 @@ Les mandats peuvent être subdivisés si le périmètre réel le justifie, sans 
 
 ### Phase 5 — Icônes, sauvegardes et stabilisation
 
-**Statut : À DÉVELOPPER**
+**Statut : TERMINÉ** (livraison officielle 2.0.0)
 
 **M5.1 — Icônes**
 
@@ -870,7 +862,7 @@ Le rapport distingue explicitement :
 5. Mouvements transactionnels fiables et solde jamais négatif.
 6. À acheter conforme aux décisions D03–D06.
 7. Acquisitions atomiques, partielles et complètes.
-8. Mode Organiser distinct du déplacement.
+8. Organisation manuelle de l’arborescence par manipulation directe (appui long / glisser-déposer).
 9. Ordre manuel persistant et absence de cycles.
 10. Fiches avancées facultatives et état propre à chaque fiche.
 11. Photos WebP optimisées et originaux personnels préservés.
@@ -911,48 +903,48 @@ Aucune de ces fonctionnalités ne doit être introduite sans arbitrage explicite
 
 ---
 
-## 17. Points ouverts
+## 17. Limitations et réserves acceptées (livraison 2.0.0)
 
-Les décisions D01–D10 restent en vigueur.
+Les décisions D01–D10 restent en vigueur (D09 selon l’évolution DnD documentée §8).
 
-Les points suivants seront traités dans les mandats concernés :
+### Maturité livrée
 
-- Priorité des besoins À acheter.
-- Interface éventuelle des mesures physiques facultatives (Phase 4).
-- Critères de compatibilité des produits lors d'une fusion.
-- Bibliothèques caméra, compression et permissions.
-- Organisation technique des fichiers privés.
-- Détails de la restauration transactionnelle.
-- Licences et volume de la bibliothèque d'icônes.
-- Décision finale sur l'importation des sauvegardes V1.
-- Mesures de performance physique en Phase 5.
+- **Biens :** parcours matures (création, consultation, médias, valorisation exclusive, organisation).
+- **Stock / À acheter :** parcours essentiels opérationnels (niveaux, besoins, acquisitions) — pas une couverture exhaustive de tous les scénarios secondaires.
+- **Formulaires :** convergence ergonomique validée.
+- **Sauvegarde / restauration :** mécanismes livrés ; démonstration bout-en-bout utilisateur requise pour lever certaines réserves de réception (voir M5.3-D / M5.4).
 
-Ces points ne justifient pas un audit global préalable.
+### Réserves non bloquantes documentées
+
+- Acquisition complète et export/restauration `.invbackup` : confirmation physique utilisateur si non encore réalisée.
+- Caméra / galerie / ouverture document / DnD doigt : non systématiquement rejoués à chaque mandat de clôture.
+- Importation `.invbackup` V1 : prévue D10, non bloquante pour la livraison V2 (base vierge acceptable).
+- Analyze : avertissements préexistants mineurs acceptés.
+
+### Hors V2 — orientations V3 (aucune implémentation dans ce périmètre)
+
+Création rapide en arbre, swipe latéral, objectif Donner, orthographe multilingue, titre original vs affichage, miniatures photo, portage Windows, etc. — conception ultérieure indépendante.
 
 ---
 
-## 18. État actuel et prochaine action
+## 18. État livré Inventory V2.0.0
 
-**Date de référence : 18 novembre 2026**
+**Date de référence : 25 novembre 2026**
 
 | Élément | État |
 |---|---|
-| Audit Phase 0 | Terminé |
-| Consolidation V2-00 | Terminée |
-| M1.1 | Terminé |
-| M1.2 | Terminé |
-| M1.2-C | Terminé |
-| M1.3 | Prochain mandat |
-| Phase 2 | Non commencée |
-| Phase 3 | Non commencée |
-| Phase 4 | Non commencée |
-| Phase 5 | Non commencée |
+| Phases 0 à 5 | Terminées (gel fonctionnel) |
+| Assainissement INTER-03-C | Appliqué (working tree local) |
+| Validation M5.3-D | VALIDÉ SOUS RÉSERVES NON BLOQUANTES |
+| Version officielle | `2.0.0` / versionCode arm64 `6051` |
+| APK release signé | `dist/android/Inventory-v2.0.0-arm64-release-vc6051.apk` |
+| ApplicationId | `io.github.cometom3.inventory` |
+| Schéma SQLite | 15 |
+| Backup | format 2 / data 3 |
 
-**Prochaine action autorisée : exécuter M1.3 — Contextualisation de la recherche, de la création et de l'historique.**
+**Clôture :** voir `docs/rapport-v2/m5-4-livraison-officielle-cloture-v2.md`.
 
-Après M1.3, analyser le rapport et déterminer si la Phase 1 peut être clôturée.
-
-Ne pas lancer M2.1 automatiquement.
+Ne pas démarrer Inventory V3 sans mandat explicite.
 
 ---
 

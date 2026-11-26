@@ -1,24 +1,6 @@
 import 'inventory_exception.dart';
 import 'inventory_models.dart';
 
-/// Lifecycle of a to-buy need (active list vs history).
-enum NeedStatus {
-  active('active'),
-  acquired('acquired'),
-  abandoned('abandoned');
-
-  const NeedStatus(this.storageValue);
-
-  final String storageValue;
-
-  static NeedStatus? fromNodeStatus(NodeStatus status) => switch (status) {
-    NodeStatus.active => NeedStatus.active,
-    NodeStatus.acquired => NeedStatus.acquired,
-    NodeStatus.abandoned => NeedStatus.abandoned,
-    NodeStatus.withdrawn => null,
-  };
-}
-
 enum PurchaseEventType {
   acquire('acquire'),
   abandon('abandon');

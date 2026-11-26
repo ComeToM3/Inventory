@@ -284,45 +284,6 @@ class _SentimentalHeartPainter extends CustomPainter {
       oldDelegate.strokeColor != strokeColor;
 }
 
-class InventoryValuationBanner extends StatelessWidget {
-  const InventoryValuationBanner({super.key, required this.text, this.icon});
-
-  final String text;
-  final IconData? icon;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: InventoryColors.mintSoft,
-        borderRadius: BorderRadius.circular(24),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            icon ?? Icons.attach_money,
-            color: InventoryColors.petroleum,
-            size: 22,
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              text,
-              style: const TextStyle(
-                color: InventoryColors.petroleumDark,
-                fontWeight: FontWeight.w600,
-                fontSize: 15,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class InventoryQuantityStepper extends StatelessWidget {
   const InventoryQuantityStepper({
     super.key,

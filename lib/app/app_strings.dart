@@ -237,8 +237,6 @@ abstract final class AppStrings {
       'Saisissez un montant positif ou nul avec au plus deux décimales.';
   static const sentimentalInput = 'Note sentimentale';
   static const sentimentalRequired = 'Choisissez une note de 1 à 5.';
-  static const valuationChangeNotice =
-      'Seule la valeur du mode choisi sera conservée.';
   static const financialUnitValue = 'Valeur financière par unité';
   static const financialTotalValue = 'Total financier';
   static const sentimentalValue = 'Valeur sentimentale';
@@ -250,20 +248,9 @@ abstract final class AppStrings {
   static const editError =
       'Impossible d’enregistrer les modifications. Réessayez.';
   static const move = 'Déplacer';
-  static const chooseDestination = 'Choisir la destination';
   static const destination = 'Destination';
   static const inventoryRoot = 'Racine de l’inventaire';
   static const parentLevel = 'Niveau précédent';
-  static const currentDestination = 'Emplacement actuel';
-  static const noMoveDestinations = 'Aucune autre destination disponible ici.';
-  static const noChildDestinations = 'Aucun sous-emplacement ou contenant.';
-  static const destinationReadError =
-      'Impossible de charger les destinations. Réessayez.';
-  static const moveHere = 'Déplacer ici';
-  static const moving = 'Déplacement…';
-  static const confirmMove = 'Confirmer le déplacement ?';
-  static const moveWithContents =
-      'Cet élément et tous ses descendants seront déplacés ensemble.';
   static const moveSuccess = 'Élément déplacé.';
   static const moveError = 'Impossible de déplacer cet élément. Réessayez.';
   static const invalidDestination =
@@ -440,7 +427,6 @@ abstract final class AppStrings {
   static String quantity(int value) => '× $value';
   static String contentCount(int value) => '($value)';
   static String addInside(String name) => 'Ajouter dans $name';
-  static String chooseInside(String name) => 'Choisir $name';
   static String viewNode(String name) => 'Fiche de $name';
   static String parentName(String name) => 'Dans : $name';
   static String cad(int cents) =>
@@ -461,8 +447,6 @@ abstract final class AppStrings {
     String path,
   ) =>
       '${labelForNodeType(type)}${count != null && count > 1 ? ' · ${quantity(count)}' : ''}\n$path';
-  static String moveTo(String name, String path) =>
-      'Déplacer « $name » vers :\n$path';
   static String initialItemValues(int quantity, int cents) =>
       'Quantité initiale : $quantity\n'
       'Valeur financière initiale : ${cad(cents)}';
@@ -566,9 +550,11 @@ abstract final class AppStrings {
       'Tout s’organise en arbre : un parent reçoit des enfants.';
   static const helpBrowseTitle = 'Consultation';
   static const helpBrowseBody =
-      'Touchez une ligne pour faire défiler ses états : contenu visible, '
-      'résumé, puis retour. Sur un bien simple, le toucher ouvre ou ferme '
-      'le résumé. Le crayon du résumé mène à la modification.';
+      'Le chevron d’un emplacement ou d’un bien-contenant ouvre ou ferme '
+      'ses enfants. Sur un emplacement, toucher la ligne fait de même. '
+      'Sur un bien (simple ou contenant), toucher la ligne ouvre ou ferme '
+      'les informations complémentaires, sans changer l’état des enfants. '
+      'Le crayon mène à la modification.';
   static const helpMoveTitle = 'Déplacement';
   static const helpMoveBody =
       'Appui long, maintenir, glisser, relâcher. Relâchez entre deux lignes '
